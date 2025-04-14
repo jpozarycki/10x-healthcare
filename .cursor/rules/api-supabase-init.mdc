@@ -1,0 +1,201 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+ # Supabase Initialization Guidelines
+
+## Core Setup Requirements
+
+1. Required packages:
+```bash
+npm install @supabase/ssr @supabase/supabase-js
+```
+
+2. Required environment variables in `.env.local`:
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+```
+
+## File Structure
+
+### 1. Supabase Client Initialization
+
+Create the file `/src/db/supabase.client.ts` with the following content:
+
+```ts
+import { createClient } from '@supabase/supabase-js';
+
+import type { Database } from '../db/database.types.ts';
+
+const supabaseUrl = import.meta.env.SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.SUPABASE_KEY;
+
+export const supabaseClient = createClient<Database>(supabaseUrl, supabaseAnonKey);
+```
+
+This file initializes the Supabase client using the environment variables `SUPABASE_URL` and `SUPABASE_KEY`.
+
+### 2. Browser Client (client.ts)
+
+```typescript
+import { createBrowserClient } from '@supabase/ssr'
+
+export const createClient = () => {
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+}
+```
+
+### 3. Server Client (server.ts)
+
+```typescript
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
+
+export async function createClient() {
+  const cookieStore = cookies()
+
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            )
+          } catch {
+            // Handle server component cookie setting
+          }
+        },
+      },
+    }
+  )
+}
+```
+
+### 4. Middleware (middleware.ts)
+
+```typescript
+import { createServerClient } from '@supabase/ssr'
+import { NextResponse, type NextRequest } from 'next/server'
+
+export async function middleware(request: NextRequest) {
+  let response = NextResponse.next({
+    request,
+  })
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            response.cookies.set(name, value, options)
+          })
+        },
+      },
+    }
+  )
+
+  const { data: { user } } = await supabase.auth.getUser()
+
+  // Implement your auth protection logic
+  if (!user && !request.nextUrl.pathname.startsWith('/auth')) {
+    return NextResponse.redirect(new URL('/auth/login', request.url))
+  }
+
+  return response
+}
+
+export const config = {
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
+}
+```
+### 5. TypeScript Environment Definitions
+
+Create the file `src/env.d.ts` with the following content:
+
+```ts
+/// <reference types="astro/client" />
+
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from './db/database.types.ts';
+
+declare global {
+  namespace App {
+    interface Locals {
+      supabase: SupabaseClient<Database>;
+    }
+  }
+}
+
+interface ImportMetaEnv {
+  readonly SUPABASE_URL: string;
+  readonly SUPABASE_KEY: string;
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}
+```
+
+
+## 🚨 Critical Requirements
+
+1. NEVER use deprecated `@supabase/auth-helpers-nextjs`
+2. ALWAYS use `@supabase/ssr` package
+3. ALWAYS use `getAll()` and `setAll()` for cookies
+4. NEVER use individual `get()`, `set()`, or `remove()` cookie methods
+
+## Usage in Server Components
+
+```typescript
+import { createClient } from '@/lib/supabase/server'
+
+export default async function ServerComponent() {
+  const supabase = await createClient()
+  const { data } = await supabase.from('your_table').select()
+  return <div>{/* Render data */}</div>
+}
+```
+
+## Usage in Client Components
+
+```typescript
+'use client'
+import { createClient } from '@/lib/supabase/client'
+
+export default function ClientComponent() {
+  const supabase = createClient()
+  // Use supabase client here
+}
+```
+
+## Error Handling
+
+1. Implement error boundaries for auth-related errors
+2. Use try/catch blocks for database operations
+3. Implement proper loading states during auth operations
+
+## Security Best Practices
+
+1. Always use RLS policies
+2. Never expose sensitive data in public routes
+3. Implement proper CORS policies
+4. Use environment variables for all sensitive values
+5. Implement proper session handling and token refresh

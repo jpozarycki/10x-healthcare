@@ -80,4 +80,65 @@ export async function GET() {
       { status: 500 }
     )
   }
+}
+
+// Dodanie endpointu PUT do aktualizacji profilu
+export async function PUT(request: Request) {
+  const routeLogger = logger.withContext({ route: '/api/v1/profile', method: 'PUT' });
+
+  try {
+    routeLogger.info('Processing profile update request');
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      routeLogger.warn('Authentication failed', { error: authError?.message });
+      return NextResponse.json(
+        errorResponseSchema.parse({ error: 'Authentication required' }),
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json();
+    const profileService = new ProfileService();
+
+    try {
+      const updatedProfile = await profileService.updateUserProfile(user.id, body);
+      routeLogger.info('Profile updated successfully', { userId: user.id });
+      return NextResponse.json(updatedProfile);
+    } catch (serviceError) {
+      routeLogger.error('Service error during profile update', {
+        userId: user.id,
+        error: serviceError instanceof Error ? serviceError.message : String(serviceError)
+      });
+
+      if (serviceError instanceof Error && serviceError.message.includes('validation failed')) {
+        return NextResponse.json(
+          errorResponseSchema.parse({ error: 'Invalid profile data structure' }),
+          { status: 422 }
+        );
+      }
+
+      return NextResponse.json(
+        errorResponseSchema.parse({ error: 'An error occurred while updating the profile' }),
+        { status: 500 }
+      );
+    }
+  } catch (error) {
+    routeLogger.error('Unexpected error during profile update', {
+      error: error instanceof Error ? error.message : String(error)
+    });
+    
+    if (error instanceof ZodError) {
+      return NextResponse.json(
+        { error: 'Invalid data format', details: error.errors },
+        { status: 422 }
+      );
+    }
+
+    return NextResponse.json(
+      errorResponseSchema.parse({ error: 'An unexpected error occurred' }),
+      { status: 500 }
+    );
+  }
 } 

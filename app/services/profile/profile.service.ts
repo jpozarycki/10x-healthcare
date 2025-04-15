@@ -1,8 +1,11 @@
 import { createClient } from '../../lib/supabase/server'
-import { GetProfileResponse } from '../../types'
+import { GetProfileResponse, UpdateProfileRequest } from '../../types'
 import { logger } from '../../utils/logger'
 import { userProfileSchema, UserProfile } from '../../schemas/profile.schema'
 import { ZodError } from 'zod'
+import { z } from 'zod'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 
 export class ProfileService {
   private logger = logger.withContext({ service: 'ProfileService' });
@@ -54,6 +57,38 @@ export class ProfileService {
           userId, 
           errors: err.errors 
         });
+        throw new Error(`Profile data validation failed: ${err.message}`);
+      }
+      throw err;
+    }
+  }
+
+  async updateUserProfile(userId: string, updateData: UpdateProfileRequest): Promise<UserProfile> {
+    this.logger.info('Updating user profile', { userId });
+    const supabase = await createClient();
+    
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .update(updateData)
+      .eq('user_id', userId)
+      .single();
+
+    if (error) {
+      this.logger.error('Error updating user profile', { 
+        userId,
+        error: error.message,
+        code: error.code
+      });
+      throw new Error('Failed to update user profile');
+    }
+
+    try {
+      const validatedProfile = userProfileSchema.parse(data);
+      this.logger.debug('User profile updated and validated successfully', { userId });
+      return validatedProfile;
+    } catch (err) {
+      if (err instanceof ZodError) {
+        this.logger.error('Profile validation failed after update', { userId, errors: err.errors });
         throw new Error(`Profile data validation failed: ${err.message}`);
       }
       throw err;

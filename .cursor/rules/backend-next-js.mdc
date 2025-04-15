@@ -1,0 +1,31 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+ ## BACKEND
+
+### Guidelines for NEXT
+
+#### NEXT_JS_14
+
+- Use App Router with Server Components as the default for better performance and SEO optimization
+- Implement route handlers (API endpoints) using the new Route Handler pattern in app/api directory
+- Use server actions for form submissions and data mutations to reduce client-side JavaScript
+- Implement middleware.ts at the root level for cross-cutting concerns like authentication and logging
+- Use Next.js built-in security headers with the appropriate configuration for {{security_requirements}}
+- Structure routes using the app directory folder convention and organize by feature or resource
+- Leverage React Server Components for data fetching and keep sensitive operations on the server
+- Implement proper error handling using error.tsx boundaries at appropriate route segments
+- Use environment variables with proper typing (.env.d.ts) and never expose sensitive values like {{database_credentials}}
+- Configure caching strategies using Route Segment Config options and revalidation methods
+- Implement rate limiting for API routes using appropriate middleware solutions
+- Use Edge Runtime for performance-critical routes that need global distribution
+- Implement proper loading states with loading.tsx files for better UX during data fetching
+- Use generateMetadata for dynamic SEO optimization at the page/route level
+- Structure API responses consistently using Next.js Response helpers and proper status codes
+- Implement proper TypeScript types for API responses and request handlers
+- Use Next.js Image component with proper optimization settings for {{image_requirements}}
+- Leverage streaming with Suspense boundaries for progressive page loading
+- Implement proper parallel and sequential data fetching patterns based on requirements
+- Use Next.js middleware for request transformation, response modification, and redirects

@@ -1,0 +1,150 @@
+openapi: 3.0.0
+info:
+  title: 10x Healthcare API
+  description: API for medication management and user profiles
+  version: 1.0.0
+servers:
+  - url: '/api/v1'
+    description: API v1
+paths:
+  /profile:
+    get:
+      summary: Get User Profile
+      description: Retrieves the current authenticated user's profile information
+      tags:
+        - Profile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User profile successfully retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Authentication required
+        '404':
+          description: Profile not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Profile not found
+        '422':
+          description: Validation error - profile data does not match expected schema
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+              example:
+                error: Invalid data format
+                details: [
+                  {
+                    "code": "invalid_type",
+                    "expected": "number",
+                    "received": "string",
+                    "path": ["age"],
+                    "message": "Expected number, received string"
+                  }
+                ]
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: An error occurred while retrieving the profile
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    UserProfile:
+      type: object
+      required:
+        - id
+        - first_name
+        - last_name
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the user profile
+        first_name:
+          type: string
+          description: User's first name
+        last_name:
+          type: string
+          description: User's last name
+        age:
+          type: integer
+          description: User's age
+        gender:
+          type: string
+          description: User's gender
+        weight:
+          type: number
+          description: User's weight
+        weight_unit:
+          type: string
+          description: Unit of measurement for weight (e.g., kg, lbs)
+        health_conditions:
+          type: object
+          description: User's health conditions
+        allergies:
+          type: object
+          description: User's allergies
+        timezone:
+          type: string
+          description: User's timezone
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Error message
+    ValidationError:
+      type: object
+      required:
+        - error
+        - details
+      properties:
+        error:
+          type: string
+          description: Error message
+        details:
+          type: array
+          description: Detailed validation errors
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+                description: Error code
+              expected:
+                type: string
+                description: Expected type or value
+              received:
+                type: string
+                description: Received type or value
+              path:
+                type: array
+                description: Path to the invalid field
+                items:
+                  type: string
+              message:
+                type: string
+                description: Error message 

@@ -10,12 +10,12 @@ import { loginFormSchema, type LoginFormData } from '@/app/schemas/auth.schema'
 import { Button } from '@/components/ui/button'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { ErrorModal, useErrorModal } from '@/components/ui'
+import { StatusModal, useStatusModal } from '@/components/ui/status-modal'
 
 export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
-  const { error, showError, closeError } = useErrorModal()
+  const { status, showError, closeStatus } = useStatusModal()
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginFormSchema),
@@ -52,8 +52,8 @@ export function LoginForm() {
       // Refresh the router cache to force revalidation of protected routes
       router.refresh()
       
-      // Redirect to the profile page on successful login
-      router.push('/profile')
+      // Redirect to the dashboard page on successful login
+      router.push('/dashboard')
     } catch (error) {
       const errorMessage = "An error occurred during sign in. Please try again."
       toast.error(errorMessage)
@@ -129,11 +129,12 @@ export function LoginForm() {
       </Form>
 
       {/* Error Modal */}
-      <ErrorModal
-        isOpen={error.isOpen}
-        onClose={closeError}
-        title={error.title}
-        message={error.message}
+      <StatusModal
+        isOpen={status.isOpen}
+        onClose={closeStatus}
+        title={status.title}
+        message={status.message}
+        variant={status.variant}
       />
     </>
   )

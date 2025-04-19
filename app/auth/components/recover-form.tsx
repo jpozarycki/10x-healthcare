@@ -9,12 +9,12 @@ import { recoverPasswordFormSchema, type RecoverPasswordFormData } from '@/app/s
 import { Button } from '@/components/ui/button'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { ErrorModal, useErrorModal } from '@/components/ui'
+import { StatusModal, useStatusModal } from '@/components/ui/status-modal'
 
 export function RecoverForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
-  const { error, showError, closeError } = useErrorModal()
+  const { status, showError, closeStatus } = useStatusModal()
 
   const form = useForm<RecoverPasswordFormData>({
     resolver: zodResolver(recoverPasswordFormSchema),
@@ -126,11 +126,12 @@ export function RecoverForm() {
       </Form>
 
       {/* Error Modal */}
-      <ErrorModal
-        isOpen={error.isOpen}
-        onClose={closeError}
-        title={error.title}
-        message={error.message}
+      <StatusModal
+        isOpen={status.isOpen}
+        onClose={closeStatus}
+        title={status.title}
+        message={status.message}
+        variant={status.variant}
       />
     </>
   )

@@ -1,7 +1,9 @@
 "use client"
 
-import { useState } from 'react'
 import { Inter } from 'next/font/google'
+import { Header } from '@/components/ui/header'
+import { ProtectedRouteWrapper } from './protected-route-wrapper'
+import AuthProvider from './auth-provider'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -10,23 +12,16 @@ export function RootLayoutClient({
 }: {
   children: React.ReactNode
 }) {
-  const [statusModal, setStatusModal] = useState<{
-    isOpen: boolean;
-    title: string;
-    message: string;
-    variant: 'success' | 'error';
-  }>({
-    isOpen: false,
-    title: '',
-    message: '',
-    variant: 'success'
-  });
-
   return (
     <div className={inter.className}>
-      <div className="container">
-        {children}
-      </div>
+      <AuthProvider>
+        <Header />
+        <div className="container py-4">
+          <ProtectedRouteWrapper>
+            {children}
+          </ProtectedRouteWrapper>
+        </div>
+      </AuthProvider>
     </div>
   )
 } 

@@ -1,4 +1,5 @@
 export * from './status-modal'
 export * from './logout-button'
 
-export { ErrorModal, useErrorModal } from './error-modal' 
+// Export StatusModal and useStatusModal with alias for backward compatibility
+export { StatusModal as ErrorModal, useStatusModal as useErrorModal } from './status-modal' 

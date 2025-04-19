@@ -2,9 +2,9 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { LogOut } from 'lucide-react'
+import { StatusModal, useStatusModal } from '@/components/ui/status-modal'
 
 interface LogoutButtonProps {
   variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'
@@ -16,6 +16,7 @@ export function LogoutButton({
   className
 }: LogoutButtonProps) {
   const [isLoading, setIsLoading] = useState(false)
+  const { status, showSuccess, showError, closeStatus } = useStatusModal()
   const router = useRouter()
 
   const handleLogout = async () => {
@@ -32,36 +33,60 @@ export function LogoutButton({
         throw new Error(data.error || 'Failed to log out')
       }
 
-      // Refresh the router cache to force revalidation
-      router.refresh()
+      // Show success modal
+      showSuccess('You have been successfully logged out.', 'Logged Out')
       
-      // Redirect to login page
-      router.push('/auth/login')
-      
-      toast.success('Logged out successfully')
+      // Wait a moment before redirecting to let the user see the message
+      setTimeout(() => {
+        // Refresh the router cache to force revalidation
+        router.refresh()
+        
+        // Redirect to login page
+        router.push('/auth/login')
+      }, 1500)
     } catch (error) {
-      toast.error("An error occurred during logout. Please try again.")
+      showError('An error occurred during logout. Please try again.', 'Error')
       console.error(error)
     } finally {
       setIsLoading(false)
     }
   }
+  
+  const closeModal = () => {
+    closeStatus()
+    
+    // If it was a successful logout, redirect after closing the modal
+    if (status.variant === 'success') {
+      router.refresh()
+      router.push('/auth/login')
+    }
+  }
 
   return (
-    <Button
-      variant={variant}
-      onClick={handleLogout}
-      disabled={isLoading}
-      className={className}
-    >
-      {isLoading ? (
-        "Logging out..."
-      ) : (
-        <>
-          <LogOut className="mr-2 h-4 w-4" />
-          Sign out
-        </>
-      )}
-    </Button>
+    <>
+      <Button
+        variant={variant}
+        onClick={handleLogout}
+        disabled={isLoading}
+        className={className}
+      >
+        {isLoading ? (
+          "Logging out..."
+        ) : (
+          <>
+            <LogOut className="mr-2 h-4 w-4" />
+            Sign out
+          </>
+        )}
+      </Button>
+      
+      <StatusModal
+        isOpen={status.isOpen}
+        onClose={closeModal}
+        title={status.title}
+        message={status.message}
+        variant={status.variant}
+      />
+    </>
   )
 } 

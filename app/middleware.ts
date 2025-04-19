@@ -26,24 +26,27 @@ export async function middleware(request: NextRequest) {
   // Refresh session if available
   const { data: { user } } = await supabase.auth.getUser()
 
-  const authRoutes = ['/auth/login', '/auth/register', '/auth/recover'];
-  const isAuthRoute = authRoutes.some(route => request.nextUrl.pathname.startsWith(route));
+  const isAuthRoute = request.nextUrl.pathname.startsWith('/auth');
   const isApiAuthRoute = request.nextUrl.pathname.startsWith('/api/auth');
+  const isPublicAsset = request.nextUrl.pathname.match(
+    /\.(ico|png|jpg|jpeg|svg|css|js|json)$/
+  );
 
-  // If user is signed in and trying to access auth routes, redirect to home
+  // If user is signed in and trying to access auth routes, redirect to dashboard
   if (user && isAuthRoute) {
-    return NextResponse.redirect(new URL('/profile', request.url))
+    return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
-  // If user is not signed in and trying to access protected routes
-  if (!user && !isAuthRoute && !isApiAuthRoute) {
-    // Allow API requests but respond with 401 for unauthorized API calls
-    if (request.nextUrl.pathname.startsWith('/api/')) {
+  // Only protect API routes with 401 response, let client-side handle page protection
+  if (!user && !isAuthRoute && !isApiAuthRoute && !isPublicAsset) {
+    // Return 401 for unauthorized API calls
+    if (request.nextUrl.pathname.startsWith('/api/') && !request.nextUrl.pathname.startsWith('/api/auth')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     
-    // Redirect to login for page requests
-    return NextResponse.redirect(new URL('/auth/login', request.url))
+    // For page requests, let the client-side handle auth check and modal display
+    // Just add auth status to the response
+    response.headers.set('X-Auth-Status', 'unauthorized')
   }
 
   return response

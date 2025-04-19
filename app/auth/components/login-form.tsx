@@ -3,8 +3,6 @@
 import { useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
-import { toast } from 'sonner'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { loginFormSchema, type LoginFormData } from '@/app/schemas/auth.schema'
 import { Button } from '@/components/ui/button'
@@ -14,8 +12,7 @@ import { StatusModal, useStatusModal } from '@/components/ui/status-modal'
 
 export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false)
-  const router = useRouter()
-  const { status, showError, closeStatus } = useStatusModal()
+  const { status, showError, showSuccess, closeStatus } = useStatusModal()
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginFormSchema),
@@ -38,10 +35,7 @@ export function LoginForm() {
       const data = await response.json()
 
       if (!response.ok) {
-        // Show toast notification
-        toast.error(data.error || "Incorrect login data. Please, try again")
-        
-        // Show error modal with more details
+        // Show error modal with details
         showError(
           data.error || "Incorrect login data. Please, try again", 
           "Authentication Failed"
@@ -49,15 +43,22 @@ export function LoginForm() {
         return
       }
 
-      // Show success toast
-      toast.success("Login successful! Redirecting to dashboard...")
-
-      // Force hard navigation instead of client-side routing
-      window.location.href = '/dashboard'
+      // Show success modal
+      showSuccess(
+        "Login successful! Redirecting to dashboard...",
+        "Authentication Successful"
+      )
+      
+      // Wait a moment to show the success message before redirecting
+      setTimeout(() => {
+        // Force hard navigation instead of client-side routing
+        window.location.href = '/dashboard'
+      }, 1500)
     } catch (error) {
-      const errorMessage = "An error occurred during sign in. Please try again."
-      toast.error(errorMessage)
-      showError(errorMessage, "Connection Error")
+      showError(
+        "An error occurred during sign in. Please try again.",
+        "Connection Error"
+      )
     } finally {
       setIsLoading(false)
     }

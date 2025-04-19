@@ -7,3 +7,4 @@ alwaysApply: true
 
 - Always use bun as a package manager, so instead of `npm` use `bun`, instead of `npx` use `bunx`
 - Always use zod for validation, if possible
+- Use [status-modal.tsx](mdc:components/ui/status-modal.tsx) for showing messages returned from the server. Do it for both successfull messages (if present) and error messages.

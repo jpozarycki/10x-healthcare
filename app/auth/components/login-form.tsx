@@ -1,0 +1,140 @@
+"use client"
+
+import { useState } from 'react'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useForm } from 'react-hook-form'
+import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { loginFormSchema, type LoginFormData } from '@/app/schemas/auth.schema'
+import { Button } from '@/components/ui/button'
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
+import { ErrorModal, useErrorModal } from '@/components/ui'
+
+export function LoginForm() {
+  const [isLoading, setIsLoading] = useState(false)
+  const router = useRouter()
+  const { error, showError, closeError } = useErrorModal()
+
+  const form = useForm<LoginFormData>({
+    resolver: zodResolver(loginFormSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+    },
+  })
+
+  const onSubmit = async (values: LoginFormData) => {
+    try {
+      setIsLoading(true)
+      
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(values),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        // Show toast notification
+        toast.error(data.error || "Incorrect login data. Please, try again")
+        
+        // Show error modal with more details
+        showError(
+          data.error || "Incorrect login data. Please, try again", 
+          "Authentication Failed"
+        )
+        return
+      }
+
+      // Refresh the router cache to force revalidation of protected routes
+      router.refresh()
+      
+      // Redirect to the profile page on successful login
+      router.push('/profile')
+    } catch (error) {
+      const errorMessage = "An error occurred during sign in. Please try again."
+      toast.error(errorMessage)
+      showError(errorMessage, "Connection Error")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <Input 
+                    type="email" 
+                    placeholder="Enter your email" 
+                    {...field} 
+                    disabled={isLoading} 
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Password</FormLabel>
+                <FormControl>
+                  <Input 
+                    type="password" 
+                    placeholder="Enter your password" 
+                    {...field} 
+                    disabled={isLoading} 
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <div className="flex flex-col space-y-4">
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? 'Signing in...' : 'Sign In'}
+            </Button>
+
+            <div className="flex justify-between text-sm">
+              <Link 
+                href="/auth/register" 
+                className="text-primary hover:underline"
+              >
+                Create an account
+              </Link>
+              <Link 
+                href="/auth/recover" 
+                className="text-primary hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
+          </div>
+        </form>
+      </Form>
+
+      {/* Error Modal */}
+      <ErrorModal
+        isOpen={error.isOpen}
+        onClose={closeError}
+        title={error.title}
+        message={error.message}
+      />
+    </>
+  )
+} 

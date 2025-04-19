@@ -23,13 +23,26 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Do not run code between createServerClient and
-  // supabase.auth.getUser(). A simple mistake could make it very hard to debug
-  // issues with users being randomly logged out.
+  // Refresh session if available
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Implement auth protection logic
-  if (!user && !request.nextUrl.pathname.startsWith('/auth')) {
+  const authRoutes = ['/auth/login', '/auth/register', '/auth/recover'];
+  const isAuthRoute = authRoutes.some(route => request.nextUrl.pathname.startsWith(route));
+  const isApiAuthRoute = request.nextUrl.pathname.startsWith('/api/auth');
+
+  // If user is signed in and trying to access auth routes, redirect to home
+  if (user && isAuthRoute) {
+    return NextResponse.redirect(new URL('/profile', request.url))
+  }
+
+  // If user is not signed in and trying to access protected routes
+  if (!user && !isAuthRoute && !isApiAuthRoute) {
+    // Allow API requests but respond with 401 for unauthorized API calls
+    if (request.nextUrl.pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    
+    // Redirect to login for page requests
     return NextResponse.redirect(new URL('/auth/login', request.url))
   }
 

@@ -37,16 +37,15 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
-  // Only protect API routes with 401 response, let client-side handle page protection
+  // If user is not signed in and not accessing auth routes or public assets, redirect to login
   if (!user && !isAuthRoute && !isApiAuthRoute && !isPublicAsset) {
     // Return 401 for unauthorized API calls
     if (request.nextUrl.pathname.startsWith('/api/') && !request.nextUrl.pathname.startsWith('/api/auth')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     
-    // For page requests, let the client-side handle auth check and modal display
-    // Just add auth status to the response
-    response.headers.set('X-Auth-Status', 'unauthorized')
+    // For page requests, redirect to the login page
+    return NextResponse.redirect(new URL('/auth/login', request.url))
   }
 
   return response

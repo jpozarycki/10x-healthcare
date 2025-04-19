@@ -49,11 +49,11 @@ export function LoginForm() {
         return
       }
 
-      // Refresh the router cache to force revalidation of protected routes
-      router.refresh()
-      
-      // Redirect to the dashboard page on successful login
-      router.push('/dashboard')
+      // Show success toast
+      toast.success("Login successful! Redirecting to dashboard...")
+
+      // Force hard navigation instead of client-side routing
+      window.location.href = '/dashboard'
     } catch (error) {
       const errorMessage = "An error occurred during sign in. Please try again."
       toast.error(errorMessage)

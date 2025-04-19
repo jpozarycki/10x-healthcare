@@ -9,8 +9,8 @@ export const userProfileSchema = z.object({
   gender: z.string().nullable(),
   weight: z.number().positive().nullable(),
   weight_unit: z.string().nullable(),
-  health_conditions: z.array(z.string()).nullable(),
-  allergies: z.array(z.string()).nullable(),
+  health_conditions: z.array(z.string()).nullable().or(z.null()),
+  allergies: z.array(z.string()).nullable().or(z.null()),
   timezone: z.string()
 });
 

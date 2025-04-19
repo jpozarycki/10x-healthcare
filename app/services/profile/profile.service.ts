@@ -71,6 +71,18 @@ export class ProfileService {
       .from('user_profiles')
       .update(updateData)
       .eq('user_id', userId)
+      .select(`
+        id,
+        first_name,
+        last_name,
+        age,
+        gender,
+        weight,
+        weight_unit,
+        health_conditions,
+        allergies,
+        timezone
+      `)
       .single();
 
     if (error) {

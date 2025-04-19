@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { Command as CommandPrimitive } from "cmdk"
-import { X } from "lucide-react"
+import { Check, X } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Command, CommandGroup, CommandItem } from "@/components/ui/command"
@@ -43,6 +43,10 @@ export function MultiSelect({
         : [...selected, option.value]
       setSelected(newSelected)
       onChange?.(newSelected)
+      setOpen(true)
+      setTimeout(() => {
+        inputRef.current?.focus()
+      }, 0)
     },
     [onChange, selected]
   )
@@ -56,6 +60,13 @@ export function MultiSelect({
     [onChange, selected]
   )
 
+  const handleCommandSelect = React.useCallback(
+    (value: string, option: Option) => {
+      handleSelect(option)
+    },
+    [handleSelect]
+  )
+
   return (
     <Command
       className="overflow-visible bg-transparent"
@@ -67,9 +78,19 @@ export function MultiSelect({
             handleRemove(lastSelected)
           }
         }
+        if (e.key === "Enter") {
+          e.preventDefault()
+        }
       }}
+      shouldFilter={inputValue.length > 0}
     >
-      <div className="group rounded-md border border-input px-3 py-2 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+      <div 
+        className="group rounded-md border border-input px-3 py-2 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
+        onClick={() => {
+          setOpen(true)
+          inputRef.current?.focus()
+        }}
+      >
         <div className="flex flex-wrap gap-1">
           {selected.map((selectedValue) => {
             const option = options.find((opt) => opt.value === selectedValue)
@@ -83,6 +104,7 @@ export function MultiSelect({
                 {option.label}
                 {!disabled && (
                   <button
+                    type="button"
                     className="ml-1 rounded-sm outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
@@ -93,7 +115,11 @@ export function MultiSelect({
                       e.preventDefault()
                       e.stopPropagation()
                     }}
-                    onClick={() => handleRemove(selectedValue)}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      handleRemove(selectedValue)
+                    }}
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -106,7 +132,9 @@ export function MultiSelect({
             disabled={disabled}
             value={inputValue}
             onValueChange={setInputValue}
-            onBlur={() => setOpen(false)}
+            onBlur={() => {
+              setTimeout(() => setOpen(false), 200)
+            }}
             onFocus={() => setOpen(true)}
             placeholder={selected.length === 0 ? placeholder : undefined}
             className="flex-1 bg-transparent outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed"
@@ -116,23 +144,27 @@ export function MultiSelect({
       <div className="relative mt-2">
         {open && (
           <div className="absolute top-0 z-10 w-full rounded-md border bg-popover text-popover-foreground shadow-md outline-none animate-in">
-            <CommandGroup className="h-full overflow-auto">
+            <CommandGroup className="h-full max-h-60 overflow-auto">
               {options.map((option) => {
                 const isSelected = selected.includes(option.value)
                 return (
                   <CommandItem
                     key={option.value}
-                    onSelect={() => handleSelect(option)}
+                    value={option.value}
+                    onSelect={(value) => handleCommandSelect(value, option)}
                     className="cursor-pointer"
+                    onMouseDown={(e) => {
+                      e.preventDefault()
+                    }}
                   >
                     <div
                       className={`mr-2 flex h-4 w-4 items-center justify-center rounded-sm border ${
                         isSelected
                           ? "bg-primary text-primary-foreground"
-                          : "opacity-50 [&_svg]:invisible"
+                          : "opacity-50"
                       }`}
                     >
-                      <X className="h-3 w-3" />
+                      {isSelected && <Check className="h-3 w-3" />}
                     </div>
                     {option.label}
                   </CommandItem>

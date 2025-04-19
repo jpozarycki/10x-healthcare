@@ -1,9 +1,4 @@
----
-description: 
-globs: 
-alwaysApply: false
----
- # Supabase Initialization Guidelines
+# Supabase Initialization Guidelines
 
 ## Core Setup Requirements
 
@@ -20,24 +15,21 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
 
 ## File Structure
 
-### 1. Supabase Client Initialization
-
-Create the file `/src/db/supabase.client.ts` with the following content:
-
-```ts
-import { createClient } from '@supabase/supabase-js';
-
-import type { Database } from '../db/database.types.ts';
-
-const supabaseUrl = import.meta.env.SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.SUPABASE_KEY;
-
-export const supabaseClient = createClient<Database>(supabaseUrl, supabaseAnonKey);
+```
+app/
+├── lib/
+│   └── supabase/
+│       ├── server.ts     # Server-side client
+│       └── client.ts     # Browser-side client
+├── middleware.ts         # Auth middleware
+└── components/
+    └── providers/
+        └── supabase-provider.tsx  # Optional: React Context provider
 ```
 
-This file initializes the Supabase client using the environment variables `SUPABASE_URL` and `SUPABASE_KEY`.
+## Implementation Guidelines
 
-### 2. Browser Client (client.ts)
+### 1. Browser Client (client.ts)
 
 ```typescript
 import { createBrowserClient } from '@supabase/ssr'
@@ -50,7 +42,7 @@ export const createClient = () => {
 }
 ```
 
-### 3. Server Client (server.ts)
+### 2. Server Client (server.ts)
 
 ```typescript
 import { createServerClient } from '@supabase/ssr'
@@ -82,7 +74,7 @@ export async function createClient() {
 }
 ```
 
-### 4. Middleware (middleware.ts)
+### 3. Middleware (middleware.ts)
 
 ```typescript
 import { createServerClient } from '@supabase/ssr'
@@ -126,34 +118,6 @@ export const config = {
   ],
 }
 ```
-### 5. TypeScript Environment Definitions
-
-Create the file `src/env.d.ts` with the following content:
-
-```ts
-/// <reference types="astro/client" />
-
-import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Database } from './db/database.types.ts';
-
-declare global {
-  namespace App {
-    interface Locals {
-      supabase: SupabaseClient<Database>;
-    }
-  }
-}
-
-interface ImportMetaEnv {
-  readonly SUPABASE_URL: string;
-  readonly SUPABASE_KEY: string;
-}
-
-interface ImportMeta {
-  readonly env: ImportMetaEnv;
-}
-```
-
 
 ## 🚨 Critical Requirements
 
@@ -186,6 +150,19 @@ export default function ClientComponent() {
 }
 ```
 
+## Type Safety
+
+1. Generate types from your Supabase database:
+```bash
+bunx supabase gen types typescript --project-id your-project-id > types/supabase.ts
+```
+
+2. Create a typed client:
+```typescript
+import { Database } from '@/types/supabase'
+const supabase = createClient<Database>()
+```
+
 ## Error Handling
 
 1. Implement error boundaries for auth-related errors
@@ -198,4 +175,4 @@ export default function ClientComponent() {
 2. Never expose sensitive data in public routes
 3. Implement proper CORS policies
 4. Use environment variables for all sensitive values
-5. Implement proper session handling and token refresh
+5. Implement proper session handling and token refresh 

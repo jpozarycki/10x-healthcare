@@ -1,6 +1,65 @@
-Failed to compile
+Warning: Function components cannot be given refs. Attempts to access this ref will fail. Did you mean to use React.forwardRef()?
 
-./app/globals.css.webpack[javascript/auto]!=!./node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[12].oneOf[12].use[2]!./node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[12].oneOf[12].use[3]!./app/globals.css
-Error: It looks like you're trying to use `tailwindcss` directly as a PostCSS plugin. The PostCSS plugin has moved to a separate package, so to continue using Tailwind CSS with PostCSS you'll need to install `@tailwindcss/postcss` and update your PostCSS configuration.
-
-This error occurred during the build process and can only be dismissed by fixing the error.
+Check the render method of `ForwardRef`.
+Command@webpack-internal:///(app-pages-browser)/./components/ui/command.tsx:27:35
+_c<@webpack-internal:///(app-pages-browser)/./components/ui/multi-select.tsx:21:106
+createSlotClone/SlotClone<@webpack-internal:///(app-pages-browser)/./node_modules/@radix-ui/react-slot/dist/index.mjs:44:40
+createSlot/Slot2<@webpack-internal:///(app-pages-browser)/./node_modules/@radix-ui/react-slot/dist/index.mjs:20:40
+FormControl@webpack-internal:///(app-pages-browser)/./components/ui/form.tsx:125:24
+div
+FormItem@webpack-internal:///(app-pages-browser)/./components/ui/form.tsx:78:35
+Controller@webpack-internal:///(app-pages-browser)/./node_modules/react-hook-form/dist/index.esm.mjs:538:31
+FormField@webpack-internal:///(app-pages-browser)/./components/ui/form.tsx:29:24
+form
+FormProvider@webpack-internal:///(app-pages-browser)/./node_modules/react-hook-form/dist/index.esm.mjs:213:35
+RegisterForm@webpack-internal:///(app-pages-browser)/./app/auth/components/register-form.tsx:59:86
+div
+div
+div
+InnerLayoutRouter@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:242:18
+RedirectErrorBoundary@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:72:9
+RedirectBoundary@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:80:24
+NotFoundBoundary@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/not-found-boundary.js:62:62
+LoadingBoundary@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:338:76
+ErrorBoundary@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/error-boundary.js:130:67
+InnerScrollAndFocusHandler@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:152:9
+ScrollAndFocusHandler@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:227:37
+RenderFromTemplateContext@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/render-from-template-context.js:15:44
+OuterLayoutRouter@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:348:220
+InnerLayoutRouter@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:242:18
+RedirectErrorBoundary@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:72:9
+RedirectBoundary@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:80:24
+NotFoundBoundary@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/not-found-boundary.js:62:62
+LoadingBoundary@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:338:76
+ErrorBoundary@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/error-boundary.js:130:67
+InnerScrollAndFocusHandler@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:152:9
+ScrollAndFocusHandler@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:227:37
+RenderFromTemplateContext@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/render-from-template-context.js:15:44
+OuterLayoutRouter@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:348:220
+InnerLayoutRouter@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:242:18
+RedirectErrorBoundary@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:72:9
+RedirectBoundary@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:80:24
+NotFoundErrorBoundary@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/not-found-boundary.js:54:9
+NotFoundBoundary@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/not-found-boundary.js:62:62
+LoadingBoundary@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:338:76
+ErrorBoundary@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/error-boundary.js:130:67
+InnerScrollAndFocusHandler@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:152:9
+ScrollAndFocusHandler@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:227:37
+RenderFromTemplateContext@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/render-from-template-context.js:15:44
+OuterLayoutRouter@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:348:220
+body
+html
+RedirectErrorBoundary@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:72:9
+RedirectBoundary@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:80:24
+NotFoundErrorBoundary@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/not-found-boundary.js:54:9
+NotFoundBoundary@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/not-found-boundary.js:62:62
+DevRootNotFoundBoundary@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/dev-root-not-found-boundary.js:32:24
+ReactDevOverlay@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/internal/ReactDevOverlay.js:66:9
+HotReload@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:297:37
+Router@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/app-router.js:158:93
+ErrorBoundaryHandler@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/error-boundary.js:100:9
+ErrorBoundary@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/error-boundary.js:130:67
+AppRouter@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/app-router.js:441:47
+ServerRoot@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:127:24
+RSCComponent
+Root@webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:143:24

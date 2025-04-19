@@ -1,0 +1,174 @@
+# Supabase Auth Integration with Next.js
+
+This guide introduces authentication (sign-up & sign-in) in a Next.js application with server-side rendering (SSR), aligned with the 10x MedMinder Plus tech stack.
+
+## Before We Start
+
+- Verify your project uses Next.js v14, React v19, and TypeScript v5.
+- Ensure your environment variables are set in your `.env` file:
+
+  ```env
+  NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+  NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+  ```
+
+- Identify which pages or components should behave differently after introducing authentication.
+
+## Core Requirements
+
+1. Use the `@supabase/ssr` package (do NOT use `@supabase/auth-helpers-nextjs`).
+2. Use ONLY `getAll` and `setAll` for cookie management.
+3. NEVER use individual cookie methods (`get`, `set`, or `remove`).
+4. Maintain proper session management with middleware based on JWT and Supabase Auth.
+5. Embrace the Next.js App Router structure and server components for optimal performance.
+
+## Installation
+
+```bash
+npm install @supabase/ssr @supabase/supabase-js
+```
+
+## Environment Variables
+
+Set up the following in your environment:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+## Client Implementations
+
+### Browser Client
+
+```typescript
+import { createBrowserClient } from '@supabase/ssr'
+
+export function createClient() {
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+}
+```
+
+### Server Client
+
+```typescript
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
+
+export async function createClient() {
+  const cookieStore = cookies()
+
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            )
+          } catch {
+            // Ignore setAll call in Server Components if not applicable.
+          }
+        },
+      },
+    }
+  )
+}
+```
+
+## Middleware for Session Management
+
+Implement middleware to refresh auth tokens and protect routes:
+
+```typescript
+import { createServerClient } from '@supabase/ssr'
+import { NextResponse, type NextRequest } from 'next/server'
+
+export async function middleware(request: NextRequest) {
+  let supabaseResponse = NextResponse.next({ request })
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            request.cookies.set(name, value)
+          )
+          supabaseResponse = NextResponse.next({ request })
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          )
+        },
+      },
+    }
+  )
+
+  // Retrieve user session to enforce protected routes
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (
+    !user &&
+    !request.nextUrl.pathname.startsWith('/login') &&
+    !request.nextUrl.pathname.startsWith('/auth')
+  ) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    return NextResponse.redirect(url)
+  }
+
+  return supabaseResponse
+}
+
+export const config = {
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
+}
+```
+
+## Protecting Routes
+
+For protected Next.js pages (using Server Components), you can verify user sessions as follows:
+
+```tsx
+// app/protected/page.tsx
+import { createClient } from '@/lib/supabase-server-client'
+
+export default async function ProtectedPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    // Optionally, redirect or display a message prompting the user to log in
+    return <div>Please log in to access this page.</div>
+  }
+
+  return (
+    <div>
+      <h1>Protected Page</h1>
+      <p>Welcome {user.email}!</p>
+    </div>
+  )
+}
+```
+
+## Final Notes
+
+- Ensure all cookie handling is done via `getAll` and `setAll`.
+- Avoid using any deprecated methods to prevent production issues.
+- Confirm that middleware correctly returns the response with updated cookies.
+
+This guide is aligned with the 10x MedMinder Plus tech stack, ensuring high standards of performance, security, and maintainability in a Next.js environment. 

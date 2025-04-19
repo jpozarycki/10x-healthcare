@@ -5,5 +5,5 @@ alwaysApply: true
 ---
 ## PROJECT RULES
 
-- Always use bun as a package manager
+- Always use bun as a package manager, so instead of `npm` use `bun`, instead of `npx` use `bunx`
 - Always use zod for validation, if possible

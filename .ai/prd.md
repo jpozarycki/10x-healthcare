@@ -139,6 +139,17 @@ The following items are explicitly **NOT** included in the MVP scope:
 ## 5. User Stories
 
 ### For Initial Setup
+0. **Authentication rules**
+   - User can create account on a dedicated view
+   - Creating account requires email address, password and confirmed password
+   - User can login in on a dedicated view
+   - Logging in requires email address and password
+   - Password recovery should be possible
+   - User can log out via a button on top-right of the screen
+   - We do not use any external authentication services
+   - Only login, registration and password recovery pages should be accessible without authentication
+   - All other pages and user stories should be only accessible once the user authenticates
+
 1. **As a new user**, I want to quickly set up my medication profile so I can start tracking my medications with minimal effort.
    - I download the app and create an account
    - I complete a brief questionnaire about my communication preferences and health literacy

@@ -28,7 +28,8 @@ export const createMedicationSchema = z.object({
   }).optional(),
   refill_reminder_days: z.number().int().positive().optional(),
   pills_per_refill: z.number().int().positive().optional(),
-  schedule: schedulePatternSchema
+  schedule: schedulePatternSchema,
+  force_save: z.boolean().optional()
 })
 
 // Validation error response schema

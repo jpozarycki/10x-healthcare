@@ -76,6 +76,7 @@ export type CreateMedicationRequest = {
   refill_reminder_days?: number
   pills_per_refill?: number
   schedule: SchedulePattern
+  force_save?: boolean
 }
 
 export type MedicationDetailResponse = MedicationListItem & {
@@ -204,4 +205,23 @@ export type GenerateReportRequest = {
 export type GenerateReportResponse = {
   report_id: string
   status: 'processing'
+}
+
+// New request structure
+export type ForceSaveRequest = {
+  medication: {
+    name: string
+    form: string
+    strength?: string
+    strength_unit_id?: string
+    category: DBEnums['medication_category']
+    purpose?: string
+    instructions?: string
+    start_date: string
+    end_date?: string
+    refill_reminder_days?: number
+    pills_per_refill?: number
+    schedule: SchedulePattern
+  }
+  force_save: true
 } 

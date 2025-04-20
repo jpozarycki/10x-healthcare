@@ -9,7 +9,8 @@ import {
   InteractionSeverity,
   MedicationListItem
 } from '../../types'
-import openai from '../../lib/openai/client'
+import { OpenRouterService } from '../../lib/openrouter/service'
+import { JSONSchema } from '../../lib/openrouter/types'
 
 interface ListMedicationsParams {
   category?: string;
@@ -27,6 +28,7 @@ interface ListMedicationsResult {
 
 export class MedicationService {
   private logger = logger.withContext({ service: 'MedicationService' });
+  private openRouterService = new OpenRouterService();
 
   /**
    * Lists medications with optional filtering and pagination
@@ -121,6 +123,11 @@ export class MedicationService {
    */
   async createMedication(userId: string, medicationData: CreateMedicationRequest): Promise<string> {
     this.logger.info('Creating new medication', { userId });
+    
+    // First check for medication interactions
+    const interactionResult = await this.validateMedicationInteractions(userId, medicationData);
+    
+    // After interaction check, proceed with medication creation
     const supabase = await createClient();
 
     console.log("starting medication creation");
@@ -163,6 +170,9 @@ export class MedicationService {
         ...medicationData.schedule.pattern,
         times: medicationData.schedule.times
       };
+      
+      // Default dose amount to 1 if not specified
+      const doseAmount = 1;
 
       const { error: scheduleError } = await supabase
         .from('medication_schedules')
@@ -172,7 +182,8 @@ export class MedicationService {
           schedule_pattern: schedulePattern,
           with_food: medicationData.schedule.with_food,
           start_date: medicationData.start_date,
-          end_date: medicationData.end_date
+          end_date: medicationData.end_date,
+          dose_amount: doseAmount // Add required dose_amount field
         });
 
       if (scheduleError) {
@@ -266,37 +277,29 @@ export class MedicationService {
     }
 
     try {
-      // Call OpenAI API to check for interactions
+      // Define the JSON schema for the interaction check response
+      const interactionSchema = this.getMedicationInteractionSchema();
+
+      // Build the prompt for interaction analysis
       const prompt = this.buildInteractionCheckPrompt(validationRequest);
       
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          {
-            role: "system",
-            content: `You are a medical interaction analysis system. Your task is to identify potential interactions between medications.
+      // Use OpenRouterService to generate structured response
+      const interactionResult = await this.openRouterService.generateStructuredResponse<ValidateMedicationInteractionsResponse>(
+        [{ role: "user", content: prompt }],
+        interactionSchema,
+        {
+          systemMessage: `You are a medical interaction analysis system. Your task is to identify potential interactions between medications.
             Consider drug-drug interactions, contraindications related to user health conditions, and potential allergic reactions.
             Rank interactions by severity (low, moderate, high) and provide specific recommendations.
             Be precise, comprehensive, and return results in the exact JSON format requested.
             Remember that patient safety is paramount, but avoid raising unnecessary alarms for minimal risks.
-            Always include a medical disclaimer.`
-          },
-          {
-            role: "user",
-            content: prompt
+            Always include a medical disclaimer.`,
+          model: "gpt-4o-mini",
+          parameters: {
+            temperature: 0.2
           }
-        ],
-        temperature: 0.2,
-        response_format: { type: "json_object" }
-      });
-
-      const aiResponse = response.choices[0].message.content;
-      if (!aiResponse) {
-        throw new Error('Empty response from AI');
-      }
-
-      // Parse the AI response
-      const interactionResult = JSON.parse(aiResponse) as ValidateMedicationInteractionsResponse;
+        }
+      );
       
       this.logger.debug('AI interaction check completed', { 
         userId, 
@@ -304,13 +307,8 @@ export class MedicationService {
         severity: interactionResult.severity_level
       });
 
-      // Ensure the response has all required fields
       return {
-        has_interactions: interactionResult.has_interactions || false,
-        severity_level: interactionResult.severity_level || InteractionSeverity.LOW,
-        interactions: interactionResult.interactions || [],
-        disclaimer: interactionResult.disclaimer || "This is a preliminary check and does not replace professional medical advice.",
-        model_version: interactionResult.model_version || "OpenAI GPT-4o",
+        ...interactionResult,
         generated_at: new Date().toISOString()
       };
     } catch (error) {
@@ -403,5 +401,75 @@ Where:
 
 The response should strictly follow this JSON format with no additional content.
 `;
+  }
+
+  /**
+   * Returns the JSON schema for medication interaction validation
+   * @returns JSONSchema for interaction validation
+   */
+  private getMedicationInteractionSchema(): JSONSchema {
+    return {
+      type: 'json_schema',
+      json_schema: {
+        name: "medicationInteractions",
+        strict: true,
+        schema: {
+          type: "object",
+          properties: {
+            has_interactions: {
+              type: "boolean",
+              description: "Whether any interactions were detected"
+            },
+            severity_level: {
+              type: "string",
+              enum: ["low", "moderate", "high"],
+              description: "The highest severity level found among all interactions"
+            },
+            interactions: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  medication_pair: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "Array with [existing medication name, new medication name]"
+                  },
+                  description: {
+                    type: "string",
+                    description: "Detailed description of the interaction"
+                  },
+                  severity: {
+                    type: "string",
+                    enum: ["low", "moderate", "high"],
+                    description: "Severity level for this specific interaction"
+                  },
+                  recommendations: {
+                    type: "string",
+                    description: "Recommendations for managing this interaction"
+                  },
+                  confidence_score: {
+                    type: "number",
+                    description: "Confidence in this interaction assessment (0.0 to 1.0)"
+                  }
+                },
+                required: ["medication_pair", "description", "severity", "recommendations", "confidence_score"]
+              },
+              description: "Array of detected interactions"
+            },
+            disclaimer: {
+              type: "string",
+              description: "Medical disclaimer"
+            },
+            model_version: {
+              type: "string",
+              description: "Identifier for the model or knowledge base used"
+            }
+          },
+          required: ["has_interactions", "severity_level", "interactions", "disclaimer", "model_version"],
+          additionalProperties: false
+        }
+      }
+    };
   }
 } 

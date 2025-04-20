@@ -3,3 +3,5 @@
 - parse all data from user_profile to interactions prompt
 - add today's date to interactions prompt
 - spelling of this document
+- folders' structure
+- naming convention

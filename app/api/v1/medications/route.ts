@@ -170,33 +170,40 @@ export async function POST(request: Request) {
     
     // First, validate medication interactions
     try {
-      const interactionResult = await medicationService.validateMedicationInteractions(
-        user.id,
-        medicationData
-      );
-      
-      // If we detected high-severity interactions, return an error
-      if (interactionResult.has_interactions && interactionResult.severity_level === InteractionSeverity.HIGH) {
-        routeLogger.warn('Critical medication interactions detected', { 
-          userId: user.id,
-          interactions: interactionResult.interactions 
+      // Skip interaction check if force_save is true
+      if (medicationData.force_save) {
+        routeLogger.info('Skipping medication interactions check due to force_save flag', { 
+          userId: user.id
         });
+      } else {
+        const interactionResult = await medicationService.validateMedicationInteractions(
+          user.id,
+          medicationData
+        );
         
-        return NextResponse.json({
-          error: 'Critical medication interactions detected',
-          interactions: interactionResult.interactions,
-          severity: interactionResult.severity_level,
-          disclaimer: interactionResult.disclaimer
-        }, { status: 400 });
-      }
-      
-      // If interactions were found but aren't critical, proceed with creation
-      // In a real app, we might want to ask the user for confirmation first
-      if (interactionResult.has_interactions) {
-        routeLogger.info('Non-critical medication interactions detected, proceeding with creation', { 
-          userId: user.id,
-          severity: interactionResult.severity_level
-        });
+        // If we detected high-severity interactions, return an error
+        if (interactionResult.has_interactions && interactionResult.severity_level === InteractionSeverity.HIGH) {
+          routeLogger.warn('Critical medication interactions detected', { 
+            userId: user.id,
+            interactions: interactionResult.interactions 
+          });
+          
+          return NextResponse.json({
+            error: 'Critical medication interactions detected',
+            interactions: interactionResult.interactions,
+            severity: interactionResult.severity_level,
+            disclaimer: interactionResult.disclaimer
+          }, { status: 400 });
+        }
+        
+        // If interactions were found but aren't critical, proceed with creation
+        // In a real app, we might want to ask the user for confirmation first
+        if (interactionResult.has_interactions) {
+          routeLogger.info('Non-critical medication interactions detected, proceeding with creation', { 
+            userId: user.id,
+            severity: interactionResult.severity_level
+          });
+        }
       }
     } catch (error) {
       routeLogger.error('Error validating medication interactions', {

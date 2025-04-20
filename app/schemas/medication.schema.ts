@@ -17,7 +17,7 @@ export const createMedicationSchema = z.object({
   form: z.string().min(1, 'Medication form is required'),
   strength: z.string().optional(),
   strength_unit_id: z.string().uuid().optional(),
-  category: z.enum(['prescription', 'otc', 'supplement', 'other'] as [string, ...string[]]),
+  category: z.enum(['chronic','acute', 'as_needed'] as [string, ...string[]]),
   purpose: z.string().optional(),
   instructions: z.string().optional(),
   start_date: z.string().refine((val) => !isNaN(Date.parse(val)), {

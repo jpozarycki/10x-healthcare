@@ -11,6 +11,82 @@ const requestCounts = new Map<string, { count: number, timestamp: number }>();
 const RATE_LIMIT = 10; // requests per minute per user
 const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute in milliseconds
 
+export async function GET(request: Request) {
+  const routeLogger = logger.withContext({ route: '/api/v1/medications', method: 'GET' });
+  
+  try {
+    routeLogger.info('Processing medications list request');
+    
+    // Create Supabase server client
+    const supabase = await createClient();
+    
+    // Get the authenticated user
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      routeLogger.warn('Authentication failed', { error: authError?.message });
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+    
+    routeLogger.debug('User authenticated', { userId: user.id });
+    
+    // Parse query parameters
+    const url = new URL(request.url);
+    const category = url.searchParams.get('category');
+    const status = url.searchParams.get('status');
+    const sort = url.searchParams.get('sort') || 'name';
+    const order = url.searchParams.get('order') || 'asc';
+    const page = parseInt(url.searchParams.get('page') || '1', 10);
+    const limit = parseInt(url.searchParams.get('limit') || '10', 10);
+    
+    // Use the medication service to fetch medications
+    const medicationService = new MedicationService();
+    
+    const { items, total } = await medicationService.listMedications(user.id, {
+      category: category || undefined,
+      status: status || undefined,
+      sort,
+      order: order as 'asc' | 'desc',
+      page,
+      limit
+    });
+    
+    routeLogger.info('Medications retrieved successfully', { 
+      userId: user.id, 
+      count: items.length,
+      total
+    });
+    
+    return NextResponse.json({
+      items,
+      total,
+      page,
+      limit
+    });
+  } catch (error) {
+    routeLogger.error('Unexpected error during medications list retrieval', {
+      error: error instanceof Error ? error.message : String(error)
+    });
+    
+    // Try to capture additional diagnostic information
+    const errorContext = {
+      timestamp: new Date().toISOString(),
+      errorType: error instanceof Error ? error.constructor.name : 'Unknown',
+      stack: error instanceof Error ? error.stack : undefined
+    };
+    
+    routeLogger.error('Error diagnostics', errorContext);
+    
+    return NextResponse.json(
+      { error: 'An unexpected error occurred' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(request: Request) {
   const routeLogger = logger.withContext({ route: '/api/v1/medications', method: 'POST' });
   
@@ -254,16 +330,14 @@ async function logAction(userId: string, action: string, details: Record<string,
     const supabase = await createClient();
     
     await supabase
-      .from('audit_logs')
+      .from('audit_log')
       .insert({
         user_id: userId,
-        action,
-        details,
-        ip_address: '0.0.0.0', // In a real implementation, you would get the client IP
-        created_at: new Date().toISOString()
+        action: action,
+        details: details
       });
   } catch (error) {
-    // Log but don't throw - we don't want audit logging failures to affect the main flow
+    // Log but don't throw - audit logging should not break the main flow
     logger.error('Failed to log action to audit log', {
       userId,
       action,

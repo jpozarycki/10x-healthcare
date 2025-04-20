@@ -10,7 +10,7 @@ A modern, opinionated tech stack for building fast, accessible, and AI-powered m
 * **Tailwind CSS** v4.0.0 - Utility-first CSS framework
 * **Shadcn/ui** - Accessible component library based on Radix UI
 * **Supabase** - PostgreSQL database with authentication and realtime features
-* **OpenAI API** - AI-powered personalization and interactions
+* **OpenRouter.ai API** - AI-powered personalization and interactions
 * **Langchain.js** - Framework for AI application development
 * **Vercel** - Edge-optimized hosting and deployment platform
 
@@ -19,4 +19,4 @@ A modern, opinionated tech stack for building fast, accessible, and AI-powered m
 * Node.js v22.14.0 (as specified in `.nvmrc`)
 * npm (comes with Node.js)
 * Supabase account for database service
-* OpenAI API key for AI functionality
+* OpenRouter.ai API key for AI functionality

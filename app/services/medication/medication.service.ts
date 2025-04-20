@@ -6,12 +6,112 @@ import {
   ValidateMedicationInteractionsRequest, 
   ValidateMedicationInteractionsResponse,
   MedicationInteraction,
-  InteractionSeverity
+  InteractionSeverity,
+  MedicationListItem
 } from '../../types'
 import openai from '../../lib/openai/client'
 
+interface ListMedicationsParams {
+  category?: string;
+  status?: string;
+  sort: string;
+  order: 'asc' | 'desc';
+  page: number;
+  limit: number;
+}
+
+interface ListMedicationsResult {
+  items: MedicationListItem[];
+  total: number;
+}
+
 export class MedicationService {
   private logger = logger.withContext({ service: 'MedicationService' });
+
+  /**
+   * Lists medications with optional filtering and pagination
+   * @param userId The ID of the user whose medications to list
+   * @param params The filter and pagination parameters
+   * @returns List of medications and total count
+   */
+  async listMedications(userId: string, params: ListMedicationsParams): Promise<ListMedicationsResult> {
+    this.logger.info('Listing medications', { userId, params });
+    const supabase = await createClient();
+    
+    // Start building the query
+    let query = supabase
+      .from('medications')
+      .select('id, name, form, strength, category, start_date, end_date, is_active, refill_reminder_days, created_at, schedule:medication_schedules(schedule_type, schedule_pattern, with_food)', { count: 'exact' })
+      .eq('user_id', userId);
+    
+    // Apply filters if provided
+    if (params.category) {
+      query = query.eq('category', params.category);
+    }
+    
+    if (params.status) {
+      query = query.eq('is_active', params.status === 'active');
+    }
+    
+    // Apply sorting
+    let sortField = params.sort;
+    if (!['name', 'form', 'start_date', 'end_date', 'created_at'].includes(sortField)) {
+      sortField = 'name'; // Default sort
+    }
+    
+    query = query.order(sortField, { ascending: params.order === 'asc' });
+    
+    // Apply pagination
+    const from = (params.page - 1) * params.limit;
+    const to = from + params.limit - 1;
+    query = query.range(from, to);
+    
+    // Execute the query
+    const { data, error, count } = await query;
+    
+    if (error) {
+      this.logger.error('Error fetching medications list', { 
+        userId, 
+        error: error.message,
+        code: error.code
+      });
+      throw new Error(`Failed to fetch medications: ${error.message}`);
+    }
+    
+    // Transform the data to match the expected response format
+    const items = data.map(med => {
+      const schedule = med.schedule?.[0] || null;
+      
+      return {
+        id: med.id,
+        name: med.name,
+        form: med.form,
+        strength: med.strength || null,
+        category: med.category,
+        start_date: med.start_date,
+        end_date: med.end_date || null,
+        is_active: med.is_active,
+        refill_reminder_days: med.refill_reminder_days || null,
+        schedule: schedule ? {
+          type: schedule.schedule_type,
+          times: [],
+          with_food: schedule.with_food || false,
+          pattern: schedule.schedule_pattern || {}
+        } : null
+      };
+    });
+    
+    this.logger.debug('Medications list fetched successfully', { 
+      userId, 
+      count: items.length,
+      total: count || 0
+    });
+    
+    return {
+      items,
+      total: count || 0
+    };
+  }
 
   /**
    * Creates a new medication record in the database
@@ -23,6 +123,7 @@ export class MedicationService {
     this.logger.info('Creating new medication', { userId });
     const supabase = await createClient();
 
+    console.log("starting medication creation");
     // Start a transaction
     const { data: medications, error: medicationsError } = await supabase
       .from('medications')
@@ -57,13 +158,18 @@ export class MedicationService {
 
     // If schedule data is provided, create a schedule record
     if (medicationData.schedule) {
+      // Include times array in the schedule_pattern JSON object
+      const schedulePattern = {
+        ...medicationData.schedule.pattern,
+        times: medicationData.schedule.times
+      };
+
       const { error: scheduleError } = await supabase
         .from('medication_schedules')
         .insert({
           medication_id: medicationId,
           schedule_type: medicationData.schedule.type,
-          schedule_pattern: medicationData.schedule.pattern,
-          times: medicationData.schedule.times,
+          schedule_pattern: schedulePattern,
           with_food: medicationData.schedule.with_food,
           start_date: medicationData.start_date,
           end_date: medicationData.end_date

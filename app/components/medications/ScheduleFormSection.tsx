@@ -172,7 +172,7 @@ export function ScheduleFormSection({
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
-          <Label htmlFor="scheduleType">Schedule Type</Label>
+          <Label htmlFor="scheduleType" className="mb-4">Schedule Type</Label>
           <Select
             value={scheduleType}
             onValueChange={handleScheduleTypeChange}

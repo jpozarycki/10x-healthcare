@@ -311,39 +311,7 @@ export function MedicationDetailsModal({
           </div>
         )}
         
-        <DialogFooter className="mt-4">
-          <div className="w-full flex justify-end gap-2">
-            <Button
-              variant="outline"
-              onClick={onClose}
-              className="font-medium"
-            >
-              Close
-            </Button>
-            
-            {details && (
-              <>
-                <Button
-                  variant="outline"
-                  className="font-medium border-blue-500 text-blue-600 hover:bg-blue-50"
-                  onClick={() => details && onEdit(details.id)}
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit
-                </Button>
-                
-                <Button
-                  variant="destructive"
-                  className="font-medium"
-                  onClick={() => details && onDelete(details.id, details.name)}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
-                </Button>
-              </>
-            )}
-          </div>
-        </DialogFooter>
+    
       </DialogContent>
     </Dialog>
   );

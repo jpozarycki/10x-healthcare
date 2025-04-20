@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,6 @@ import { Loader2, PlusCircle, Edit } from "lucide-react";
 import { useMedicationForm } from "@/app/hooks/medications/useMedicationForm";
 import { StatusModal } from "@/components/ui/status-modal";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
-import { Database } from "@/app/db/database.types";
 import { cn } from "@/lib/utils";
 import { MedicationInteraction, InteractionSeverity } from "@/app/types";
 
@@ -575,7 +574,7 @@ export function MedicationFormModal({
                     type="submit"
                     onClick={handleFormSubmit}
                     disabled={isSubmitting}
-                    className="bg-primary hover:bg-primary/90 text-white font-bold py-2 px-6 rounded shadow-md hover:shadow-lg transition-all"
+                    className="bg-primary hover:bg-primary/90 text-white font-bold py-2 px-6 rounded shadow-md hover:shadow-lg transition-all bg-green-400"
                   >
                     {isSubmitting ? (
                       <>

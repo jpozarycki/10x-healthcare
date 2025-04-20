@@ -1,61 +1,61 @@
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
-interface LogMessage {
-  level: LogLevel;
-  message: string;
-  timestamp: string;
-  context?: Record<string, any>;
-}
+type LogContext = Record<string, unknown>;
 
 class Logger {
-  private context: Record<string, any> = {};
+  private context: LogContext = {};
 
-  constructor(context: Record<string, any> = {}) {
-    this.context = context;
+  constructor(private readonly defaultContext: LogContext = {}) {
+    this.context = defaultContext;
   }
 
-  private log(level: LogLevel, message: string, additionalContext: Record<string, any> = {}): void {
-    const logMessage: LogMessage = {
+  withContext(context: LogContext): Logger {
+    return new Logger({ ...this.context, ...context });
+  }
+
+  private log(level: LogLevel, message: string, context?: LogContext) {
+    const timestamp = new Date().toISOString();
+    const logData = {
+      timestamp,
       level,
       message,
-      timestamp: new Date().toISOString(),
-      context: {
-        ...this.context,
-        ...additionalContext
-      }
+      ...this.context,
+      ...(context || {})
     };
 
-    // In production, you might want to send logs to a service like Datadog, New Relic, etc.
-    console[level](JSON.stringify(logMessage));
+    switch (level) {
+      case 'debug':
+        if (process.env.NODE_ENV !== 'production') {
+          console.debug(JSON.stringify(logData));
+        }
+        break;
+      case 'info':
+        console.info(JSON.stringify(logData));
+        break;
+      case 'warn':
+        console.warn(JSON.stringify(logData));
+        break;
+      case 'error':
+        console.error(JSON.stringify(logData));
+        break;
+    }
   }
 
-  debug(message: string, context: Record<string, any> = {}): void {
+  debug(message: string, context?: LogContext) {
     this.log('debug', message, context);
   }
 
-  info(message: string, context: Record<string, any> = {}): void {
+  info(message: string, context?: LogContext) {
     this.log('info', message, context);
   }
 
-  warn(message: string, context: Record<string, any> = {}): void {
+  warn(message: string, context?: LogContext) {
     this.log('warn', message, context);
   }
 
-  error(message: string, context: Record<string, any> = {}): void {
+  error(message: string, context?: LogContext) {
     this.log('error', message, context);
-  }
-
-  // Create a new logger with additional context
-  withContext(additionalContext: Record<string, any>): Logger {
-    return new Logger({
-      ...this.context,
-      ...additionalContext
-    });
   }
 }
 
-// Create a default logger
-export const logger = new Logger({ service: '10x-healthcare' });
-
-// Export the Logger class for creating specific loggers
-export { Logger }; 
+export const logger = new Logger(); 

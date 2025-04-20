@@ -123,11 +123,6 @@ export class MedicationService {
    */
   async createMedication(userId: string, medicationData: CreateMedicationRequest): Promise<string> {
     this.logger.info('Creating new medication', { userId });
-    
-    // First check for medication interactions
-    const interactionResult = await this.validateMedicationInteractions(userId, medicationData);
-    
-    // After interaction check, proceed with medication creation
     const supabase = await createClient();
 
     console.log("starting medication creation");
@@ -199,6 +194,62 @@ export class MedicationService {
 
     this.logger.debug('Medication created successfully', { userId, medicationId });
     return medicationId;
+  }
+
+  /**
+   * Retrieves a specific medication with its schedules by ID
+   * @param userId The ID of the user who owns the medication
+   * @param medicationId The ID of the medication to retrieve
+   * @returns The medication with its schedules or null if not found
+   */
+  async getMedicationById(userId: string, medicationId: string) {
+    this.logger.info('Fetching medication by ID', { userId, medicationId });
+    const supabase = await createClient();
+    
+    const { data, error } = await supabase
+      .from('medications')
+      .select(`
+        id, 
+        name, 
+        form, 
+        strength, 
+        category, 
+        is_active, 
+        start_date, 
+        end_date, 
+        refill_reminder_days,
+        purpose,
+        instructions,
+        pills_per_refill,
+        pills_remaining,
+        schedules:medication_schedules(*)
+      `)
+      .eq('id', medicationId)
+      .eq('user_id', userId)
+      .single();
+    
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // Record not found
+        this.logger.warn('Medication not found', { userId, medicationId });
+        return null;
+      }
+      
+      this.logger.error('Error fetching medication by ID', { 
+        userId, 
+        medicationId,
+        error: error.message,
+        code: error.code
+      });
+      throw new Error(`Failed to fetch medication: ${error.message}`);
+    }
+    
+    this.logger.debug('Medication fetched successfully', { 
+      userId, 
+      medicationId
+    });
+    
+    return data;
   }
 
   /**

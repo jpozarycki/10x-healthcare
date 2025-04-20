@@ -47,6 +47,36 @@ export const createMedicationResponseSchema = z.object({
   message: z.string()
 })
 
+// Medication detail response schema
+export const medicationDetailResponseSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  form: z.string(),
+  strength: z.string().nullable(),
+  category: z.enum(['chronic','acute', 'as_needed'] as [string, ...string[]]),
+  is_active: z.boolean(),
+  start_date: z.string(),
+  end_date: z.string().nullable(),
+  refill_reminder_days: z.number().nullable(),
+  purpose: z.string().nullable(),
+  instructions: z.string().nullable(),
+  pills_per_refill: z.number().nullable(),
+  pills_remaining: z.number().nullable(),
+  schedules: z.array(z.object({
+    id: z.string().uuid(),
+    medication_id: z.string().uuid(),
+    schedule_type: z.string(),
+    schedule_pattern: z.record(z.unknown()),
+    dose_amount: z.number(),
+    dose_unit_id: z.string().uuid().nullable(),
+    with_food: z.boolean().nullable(),
+    special_instructions: z.string().nullable(),
+    start_date: z.string(),
+    end_date: z.string().nullable(),
+    is_active: z.boolean()
+  }))
+})
+
 // Validation Interaction Request Schema
 export const validateMedicationInteractionsSchema = z.object({
   medications: z.array(z.object({

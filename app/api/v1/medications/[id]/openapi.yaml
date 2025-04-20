@@ -1,0 +1,214 @@
+openapi: 3.0.0
+info:
+  title: MedMinder Plus API
+  version: 1.0.0
+  description: API for managing medications in MedMinder Plus system
+
+paths:
+  /api/v1/medications/{id}:
+    put:
+      summary: Update Medication
+      description: Update an existing medication and its schedule
+      tags:
+        - Medications
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Medication's unique UUID
+          schema:
+            type: string
+            format: uuid
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - form
+                - category
+                - start_date
+                - schedule
+              properties:
+                name:
+                  type: string
+                  description: Name of the medication
+                  minLength: 1
+                form:
+                  type: string
+                  description: Form of the medication (e.g., tablet, liquid)
+                  minLength: 1
+                strength:
+                  type: string
+                  description: Strength of the medication
+                strength_unit_id:
+                  type: string
+                  format: uuid
+                  description: UUID of the strength unit
+                category:
+                  type: string
+                  enum: [chronic, acute, as_needed]
+                  description: Category of medication
+                purpose:
+                  type: string
+                  description: Purpose of taking the medication
+                instructions:
+                  type: string
+                  description: Special instructions for taking the medication
+                start_date:
+                  type: string
+                  format: date
+                  description: Start date in YYYY-MM-DD format
+                end_date:
+                  type: string
+                  format: date
+                  description: End date in YYYY-MM-DD format
+                refill_reminder_days:
+                  type: integer
+                  minimum: 0
+                  description: Days before refill reminder
+                pills_per_refill:
+                  type: integer
+                  minimum: 0
+                  description: Number of pills per refill
+                schedule:
+                  type: object
+                  required:
+                    - type
+                    - pattern
+                    - times
+                    - with_food
+                  properties:
+                    type:
+                      type: string
+                      description: Type of schedule
+                    pattern:
+                      type: object
+                      description: Schedule pattern configuration
+                    times:
+                      type: array
+                      items:
+                        type: string
+                      description: Times of day to take medication
+                    with_food:
+                      type: boolean
+                      description: Whether to take with food
+      responses:
+        '200':
+          description: Medication updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  form:
+                    type: string
+                  strength:
+                    type: string
+                  category:
+                    type: string
+                    enum: [chronic, acute, as_needed]
+                  is_active:
+                    type: boolean
+                  start_date:
+                    type: string
+                    format: date
+                  end_date:
+                    type: string
+                    format: date
+                  refill_reminder_days:
+                    type: integer
+                  schedules:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        schedule_type:
+                          type: string
+                        schedule_pattern:
+                          type: object
+                        with_food:
+                          type: boolean
+                        start_date:
+                          type: string
+                          format: date
+                        end_date:
+                          type: string
+                          format: date
+        '400':
+          description: Invalid input data or medication ID
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Validation failed"
+                  errors:
+                    type: object
+                    properties:
+                      name:
+                        type: array
+                        items:
+                          type: string
+                        example: ["Name is required"]
+                      end_date:
+                        type: array
+                        items:
+                          type: string
+                        example: ["End date must be after start date"]
+        '401':
+          description: Authentication is required
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Unauthorized"
+                  error:
+                    type: string
+                    example: "Unauthorized access"
+        '404':
+          description: Medication not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Medication not found"
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Internal server error"
+                  error:
+                    type: string
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT 

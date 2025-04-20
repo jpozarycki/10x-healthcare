@@ -4,8 +4,12 @@ import { cookies } from 'next/headers'
 import { z } from 'zod'
 import { Database } from '../../../../../app/db/database.types'
 import { CreateMedicationRequest, MedicationDetailResponse } from '../../../../../app/types'
-import { MedicationUpdateService } from '../../../../../app/services/medication.update.service'
-import { logger } from '../../../../../app/utils/logger'
+import { MedicationUpdateService } from '../../../../../app/services/medication/medication.update.service'
+import { MedicationDeleteService } from '@/app/services/medication/medication.delete.service'
+import { logger } from '@/app/utils/logger'
+import { RateLimiter } from '@/app/utils/rate-limiter'
+import { getAuthenticatedUser } from '@/app/utils/auth'
+import { isValidUUID } from '@/app/utils/validation'
 
 // UUID validation schema
 const uuidSchema = z.string().uuid('Invalid medication ID format')
@@ -58,6 +62,14 @@ const updateMedicationSchema = z.object({
       schedule: data.schedule
     } as CreateMedicationRequest;
   });
+
+// Rate limiting configuration
+const DELETE_RATE_LIMIT = {
+  maxRequests: 10, // Maximum number of requests
+  windowMs: 60 * 1000, // Time window in milliseconds (1 minute)
+};
+
+const rateLimiter = new RateLimiter(DELETE_RATE_LIMIT.maxRequests, DELETE_RATE_LIMIT.windowMs);
 
 export async function GET(
   request: Request,
@@ -289,6 +301,113 @@ export async function PUT(
 
     return NextResponse.json(
       { message: 'Internal server error', error: error.message },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+): Promise<NextResponse> {
+  const log = logger.withContext({ 
+    endpoint: 'DELETE /api/v1/medications/[id]',
+    medicationId: params.id 
+  });
+
+  try {
+    // Validate medication ID format
+    if (!isValidUUID(params.id)) {
+      log.warn('Invalid medication ID format');
+      return NextResponse.json(
+        { error: 'Invalid medication ID format' },
+        { status: 400 }
+      );
+    }
+
+    // Initialize Supabase client
+    const cookieStore = cookies();
+    const supabase = createServerClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
+          },
+          setAll(cookiesToSet) {
+            try {
+              cookiesToSet.forEach(({ name, value, options }) =>
+                cookieStore.set(name, value, options)
+              );
+            } catch {
+              log.warn('Failed to set cookies in server component context');
+            }
+          },
+        },
+      }
+    );
+
+    // Get authenticated user
+    const user = await getAuthenticatedUser(request);
+    if (!user) {
+      log.warn('Authentication required');
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    // Check rate limit
+    if (!rateLimiter.tryRequest(user.id)) {
+      log.warn('Rate limit exceeded', { userId: user.id });
+      const response = NextResponse.json(
+        { error: 'Rate limit exceeded' },
+        { status: 429 }
+      );
+
+      // Add rate limit headers
+      response.headers.set('X-RateLimit-Limit', '10');
+      response.headers.set(
+        'X-RateLimit-Remaining', 
+        rateLimiter.getRemainingRequests(user.id).toString()
+      );
+      response.headers.set(
+        'X-RateLimit-Reset', 
+        Math.ceil(rateLimiter.getTimeRemaining(user.id) / 1000).toString()
+      );
+
+      return response;
+    }
+
+    // Delete medication
+    const deleteService = new MedicationDeleteService(supabase);
+    await deleteService.deleteMedication(user.id, params.id);
+
+    log.info('Medication deleted successfully');
+    return new NextResponse(null, { status: 204 });
+
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === 'Medication not found') {
+        log.warn('Medication not found');
+        return NextResponse.json(
+          { error: 'Medication not found' },
+          { status: 404 }
+        );
+      }
+      if (error.message === 'Unauthorized') {
+        log.warn('Unauthorized access attempt');
+        return NextResponse.json(
+          { error: 'Forbidden' },
+          { status: 403 }
+        );
+      }
+    }
+
+    log.error('Error deleting medication', { error });
+    return NextResponse.json(
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

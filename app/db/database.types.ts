@@ -955,6 +955,20 @@ export type Database = {
         Args: { cutoff_interval: unknown }
         Returns: number
       }
+      delete_adherence_records_with_refresh: {
+        Args: { 
+          p_medication_id: string
+          p_user_id: string 
+        }
+        Returns: void
+      }
+      delete_medication_adherence_records: {
+        Args: { 
+          p_medication_id: string
+          p_user_id: string 
+        }
+        Returns: void
+      }
       get_archived_records_count: {
         Args: { p_user_id: string }
         Returns: {

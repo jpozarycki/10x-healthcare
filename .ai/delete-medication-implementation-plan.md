@@ -39,7 +39,7 @@ Dla tej operacji nie są wymagane specjalne modele DTO ani Command. Endpoint prz
 - **Uwierzytelnianie**: Wymagane jest aby użytkownik był zalogowany.
 - **Autoryzacja**: Tylko właściciel leku (user_id) może go usunąć.
 - **Walidacja parametrów**: ID leku musi być prawidłowym UUID.
-- **Row-Level Security**: Wykorzystanie polityk Row-Level Security w Supabase dla dodatkowej warstwy ochrony.
+
 
 ## 7. Obsługa błędów
 - **400 Bad Request**: Nieprawidłowy format UUID.
@@ -235,4 +235,4 @@ export async function deleteMedicationService(
 ```
 
 ### Krok 4: Integracja z dokumentacją API
-Zaktualizuj dokumentację API (np. OpenAPI/Swagger) dodając informacje o nowym endpoincie. 
+Zaktualizuj dokumentację API wg OpenAPI dodając informacje o nowym endpoincie. 

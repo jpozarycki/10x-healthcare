@@ -5,3 +5,4 @@
 - spelling of this document
 - folders' structure
 - naming convention
+- deleteAdherenceRecords

@@ -206,6 +206,85 @@ paths:
                   error:
                     type: string
 
+    delete:
+      summary: Delete Medication
+      description: Delete an existing medication and all its related records. This operation is irreversible.
+      tags:
+        - Medications
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Medication's unique UUID
+          schema:
+            type: string
+            format: uuid
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Medication successfully deleted
+        '400':
+          description: Invalid medication ID format
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid medication ID format"
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Authentication required"
+        '403':
+          description: Forbidden - User does not own this medication
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Access denied"
+        '404':
+          description: Medication not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Medication not found"
+        '429':
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Rate limit exceeded. Please try again later."
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "An unexpected error occurred"
+
 components:
   securitySchemes:
     bearerAuth:

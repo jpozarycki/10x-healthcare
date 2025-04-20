@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Loader2, Calendar, Clock, AlertCircle, Edit, Trash2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Loader2, Calendar, Clock, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MedicationDetailResponse } from "@/app/types";
@@ -311,7 +310,6 @@ export function MedicationDetailsModal({
           </div>
         )}
         
-    
       </DialogContent>
     </Dialog>
   );

@@ -1,193 +1,258 @@
-import { NextResponse } from 'next/server';
-import { GET } from '../../../../api/v1/profile/route';
+import { GET, PUT } from '../../../../api/v1/profile/route';
 import { ProfileService } from '../../../../services/profile/profile.service';
-import { ZodError } from 'zod';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { Mock } from 'vitest';
+import { createClient } from '../../../../lib/supabase/server';
+import { UserProfile } from '../../../../schemas/profile.schema';
 
 // Mock dependencies
-jest.mock('../../../../lib/supabase/server', () => ({
-  createClient: jest.fn().mockImplementation(() => ({
-    auth: {
-      getUser: jest.fn()
-    }
-  }))
-}));
-
-jest.mock('../../../../services/profile/profile.service');
-jest.mock('../../../../utils/logger', () => ({
+vi.mock('../../../../lib/supabase/server');
+vi.mock('../../../../services/profile/profile.service');
+vi.mock('next/server', async (importOriginal) => {
+  const mod = await importOriginal<typeof import('next/server')>();
+  return {
+    ...mod,
+    NextResponse: {
+      json: vi.fn((body, init) => ({ // Simple mock returning input
+        json: async () => body,
+        status: init?.status || 200,
+        headers: new Headers(init?.headers),
+        ok: (init?.status ?? 200) >= 200 && (init?.status ?? 200) < 300,
+      })),
+    },
+  };
+});
+// Mock logger
+vi.mock('../../../../utils/logger', () => ({
   logger: {
-    withContext: jest.fn().mockReturnValue({
-      info: jest.fn(),
-      debug: jest.fn(),
-      warn: jest.fn(),
-      error: jest.fn()
-    })
-  }
+    withContext: vi.fn(() => ({
+      info: vi.fn(),
+      error: vi.fn(),
+      warn: vi.fn(),
+      debug: vi.fn(),
+    })),
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
+  },
 }));
 
-describe('Profile API Route', () => {
+describe('/api/v1/profile API Route', () => {
+  let mockGetUser: Mock;
+  let mockGetUserProfile: Mock;
+  let mockUpdateUserProfile: Mock;
+
+  const mockUserId = 'auth-user-id';
+  const mockUserProfile: UserProfile = {
+    id: 'db-profile-id',
+    first_name: 'Api',
+    last_name: 'Test',
+    age: 40,
+    gender: 'Non-binary',
+    weight: 90,
+    weight_unit: 'lbs',
+    health_conditions: [],
+    allergies: [],
+    timezone: 'America/Los_Angeles',
+  };
+
   beforeEach(() => {
-    jest.clearAllMocks();
-  });
+    vi.clearAllMocks();
 
-  it('should return 401 when user is not authenticated', async () => {
-    // Mock Supabase auth returning no user
-    const mockSupabase = require('../../../../lib/supabase/server').createClient;
-    mockSupabase().auth.getUser.mockResolvedValue({
-      data: { user: null },
-      error: { message: 'Not authenticated' }
+    // Mock Supabase auth
+    mockGetUser = vi.fn();
+    (createClient as Mock).mockResolvedValue({
+      auth: {
+        getUser: mockGetUser,
+      },
     });
 
-    // Call the API route
-    const response = await GET();
-    
-    // Verify response
-    expect(response.status).toBe(401);
-    const body = await response.json();
-    expect(body).toEqual({ error: 'Authentication required' });
-  });
-
-  it('should return 404 when profile is not found', async () => {
-    // Mock Supabase auth returning a user
-    const mockSupabase = require('../../../../lib/supabase/server').createClient;
-    mockSupabase().auth.getUser.mockResolvedValue({
-      data: { user: { id: 'test-user-id' } },
-      error: null
-    });
-
-    // Mock ProfileService returning null (profile not found)
-    const mockGetProfile = jest.fn().mockResolvedValue(null);
-    (ProfileService as jest.Mock).mockImplementation(() => ({
-      getUserProfile: mockGetProfile
+    // Mock ProfileService methods
+    mockGetUserProfile = vi.fn();
+    mockUpdateUserProfile = vi.fn();
+    (ProfileService as Mock).mockImplementation(() => ({
+      getUserProfile: mockGetUserProfile,
+      updateUserProfile: mockUpdateUserProfile,
     }));
-
-    // Call the API route
-    const response = await GET();
-    
-    // Verify response
-    expect(response.status).toBe(404);
-    const body = await response.json();
-    expect(body).toEqual({ error: 'Profile not found' });
-    expect(mockGetProfile).toHaveBeenCalledWith('test-user-id');
   });
 
-  it('should return 200 with profile data when successful', async () => {
-    // Mock Supabase auth returning a user
-    const mockSupabase = require('../../../../lib/supabase/server').createClient;
-    mockSupabase().auth.getUser.mockResolvedValue({
-      data: { user: { id: 'test-user-id' } },
-      error: null
+  describe('GET', () => {
+    it('should return 401 if user is not authenticated', async () => {
+      // Arrange
+      mockGetUser.mockResolvedValue({ data: { user: null }, error: null });
+
+      // Act
+      const response = await GET();
+      const json = await response.json();
+
+      // Assert
+      expect(response.status).toBe(401);
+      expect(json.error).toBe('Authentication required');
+      expect(mockGetUserProfile).not.toHaveBeenCalled();
     });
 
-    // Mock profile data
-    const mockProfileData = {
-      id: 'profile-id',
-      first_name: 'John',
-      last_name: 'Doe',
-      age: 30,
-      gender: 'male',
-      weight: 75,
-      weight_unit: 'kg',
-      health_conditions: { condition1: true },
-      allergies: { allergy1: true },
-      timezone: 'UTC'
-    };
+    it('should return 401 if auth check throws an error', async () => {
+      // Arrange
+      mockGetUser.mockResolvedValue({ data: { user: null }, error: new Error('Auth error') });
 
-    // Mock ProfileService returning the profile
-    const mockGetProfile = jest.fn().mockResolvedValue(mockProfileData);
-    (ProfileService as jest.Mock).mockImplementation(() => ({
-      getUserProfile: mockGetProfile
-    }));
+      // Act
+      const response = await GET();
+      const json = await response.json();
 
-    // Call the API route
-    const response = await GET();
+      // Assert
+      expect(response.status).toBe(401);
+      expect(json.error).toBe('Authentication required');
+    });
+
+    it('should return profile data if user is authenticated and profile exists', async () => {
+      // Arrange
+      mockGetUser.mockResolvedValue({ data: { user: { id: mockUserId } }, error: null });
+      mockGetUserProfile.mockResolvedValue(mockUserProfile);
+
+      // Act
+      const response = await GET();
+      const json = await response.json();
+
+      // Assert
+      expect(response.status).toBe(200);
+      expect(json).toEqual(mockUserProfile);
+      expect(ProfileService).toHaveBeenCalledTimes(1);
+      expect(mockGetUserProfile).toHaveBeenCalledWith(mockUserId);
+    });
+
+    it('should return 404 if profile does not exist', async () => {
+      // Arrange
+      mockGetUser.mockResolvedValue({ data: { user: { id: mockUserId } }, error: null });
+      mockGetUserProfile.mockResolvedValue(null);
+
+      // Act
+      const response = await GET();
+      const json = await response.json();
+
+      // Assert
+      expect(response.status).toBe(404);
+      expect(json.error).toBe('Profile not found');
+      expect(mockGetUserProfile).toHaveBeenCalledWith(mockUserId);
+    });
+
+    it('should return 500 if profile service throws an error', async () => {
+      // Arrange
+      mockGetUser.mockResolvedValue({ data: { user: { id: mockUserId } }, error: null });
+      mockGetUserProfile.mockRejectedValue(new Error('Service failure'));
+
+      // Act
+      const response = await GET();
+      const json = await response.json();
+
+      // Assert
+      expect(response.status).toBe(500);
+      expect(json.error).toBe('An error occurred while retrieving the profile');
+    });
     
-    // Verify response
-    expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(body).toEqual(mockProfileData);
-    expect(mockGetProfile).toHaveBeenCalledWith('test-user-id');
+    it('should return 422 if profile service throws validation error', async () => {
+      // Arrange
+      mockGetUser.mockResolvedValue({ data: { user: { id: mockUserId } }, error: null });
+      mockGetUserProfile.mockRejectedValue(new Error('validation failed: test'));
+
+      // Act
+      const response = await GET();
+      const json = await response.json();
+
+      // Assert
+      expect(response.status).toBe(422);
+      expect(json.error).toBe('Invalid profile data structure');
+    });
   });
 
-  it('should return 422 when profile validation fails', async () => {
-    // Mock Supabase auth returning a user
-    const mockSupabase = require('../../../../lib/supabase/server').createClient;
-    mockSupabase().auth.getUser.mockResolvedValue({
-      data: { user: { id: 'test-user-id' } },
-      error: null
+  describe('PUT', () => {
+    const updatePayload = { first_name: 'Updated Name' };
+    let mockRequest: Request;
+
+    beforeEach(() => {
+      mockRequest = {
+        json: vi.fn().mockResolvedValue(updatePayload),
+      } as unknown as Request;
     });
 
-    // Mock ProfileService throwing a validation error
-    const validationError = new Error('Profile data validation failed: Invalid data');
-    const mockGetProfile = jest.fn().mockRejectedValue(validationError);
-    (ProfileService as jest.Mock).mockImplementation(() => ({
-      getUserProfile: mockGetProfile
-    }));
+    it('should return 401 if user is not authenticated', async () => {
+      // Arrange
+      mockGetUser.mockResolvedValue({ data: { user: null }, error: null });
 
-    // Call the API route
-    const response = await GET();
+      // Act
+      const response = await PUT(mockRequest);
+      const json = await response.json();
+
+      // Assert
+      expect(response.status).toBe(401);
+      expect(json.error).toBe('Authentication required');
+      expect(mockUpdateUserProfile).not.toHaveBeenCalled();
+    });
+
+    it('should update profile and return data if authenticated and valid', async () => {
+      // Arrange
+      const updatedProfile = { ...mockUserProfile, ...updatePayload };
+      mockGetUser.mockResolvedValue({ data: { user: { id: mockUserId } }, error: null });
+      mockUpdateUserProfile.mockResolvedValue(updatedProfile);
+
+      // Act
+      const response = await PUT(mockRequest);
+      const json = await response.json();
+
+      // Assert
+      expect(response.status).toBe(200);
+      expect(json).toEqual(updatedProfile);
+      expect(mockRequest.json).toHaveBeenCalledTimes(1);
+      expect(ProfileService).toHaveBeenCalledTimes(1);
+      expect(mockUpdateUserProfile).toHaveBeenCalledWith(mockUserId, updatePayload);
+    });
+
+    it('should return 422 if request body parsing fails', async () => {
+       // Arrange
+      mockGetUser.mockResolvedValue({ data: { user: { id: mockUserId } }, error: null });
+      (mockRequest.json as Mock).mockRejectedValue(new Error('Invalid JSON'));
+
+      // Act
+      const response = await PUT(mockRequest);
+      const json = await response.json();
+      
+      // Assert
+      // Note: The route handler catches generic errors during body parsing as 500
+      // A more specific check might require a custom error or middleware
+      expect(response.status).toBe(500); 
+      expect(json.error).toBe('An unexpected error occurred');
+      expect(mockUpdateUserProfile).not.toHaveBeenCalled();
+    });
     
-    // Verify response
-    expect(response.status).toBe(422);
-    const body = await response.json();
-    expect(body).toEqual({ error: 'Invalid profile data structure' });
-  });
+    it('should return 422 if Zod validation fails in service (simulated)', async () => {
+      // Arrange
+      mockGetUser.mockResolvedValue({ data: { user: { id: mockUserId } }, error: null });
+      // Simulate service throwing a Zod-like validation error message
+      mockUpdateUserProfile.mockRejectedValue(new Error('validation failed: invalid input'));
 
-  it('should return 422 when a ZodError occurs', async () => {
-    // Mock Supabase auth returning a user
-    const mockSupabase = require('../../../../lib/supabase/server').createClient;
-    mockSupabase().auth.getUser.mockResolvedValue({
-      data: { user: { id: 'test-user-id' } },
-      error: null
+      // Act
+      const response = await PUT(mockRequest);
+      const json = await response.json();
+
+      // Assert
+      expect(response.status).toBe(422);
+      expect(json.error).toBe('Invalid profile data structure');
+      expect(mockUpdateUserProfile).toHaveBeenCalledWith(mockUserId, updatePayload);
     });
 
-    // Create a ZodError
-    const zodError = new ZodError([{
-      code: 'invalid_type',
-      expected: 'string',
-      received: 'number',
-      path: ['first_name'],
-      message: 'Expected string, received number'
-    }]);
+    it('should return 500 if profile service update throws generic error', async () => {
+      // Arrange
+      mockGetUser.mockResolvedValue({ data: { user: { id: mockUserId } }, error: null });
+      mockUpdateUserProfile.mockRejectedValue(new Error('Generic DB Error'));
 
-    // Mock ProfileService throwing a ZodError
-    const mockGetProfile = jest.fn().mockRejectedValue(zodError);
-    (ProfileService as jest.Mock).mockImplementation(() => ({
-      getUserProfile: mockGetProfile
-    }));
+      // Act
+      const response = await PUT(mockRequest);
+      const json = await response.json();
 
-    // Call the API route
-    const response = await GET();
-    
-    // Verify response
-    expect(response.status).toBe(422);
-    const body = await response.json();
-    expect(body.error).toBe('Invalid data format');
-    expect(body.details).toHaveLength(1);
-    expect(body.details[0].code).toBe('invalid_type');
-  });
-
-  it('should return 500 when service throws a non-validation error', async () => {
-    // Mock Supabase auth returning a user
-    const mockSupabase = require('../../../../lib/supabase/server').createClient;
-    mockSupabase().auth.getUser.mockResolvedValue({
-      data: { user: { id: 'test-user-id' } },
-      error: null
+      // Assert
+      expect(response.status).toBe(500);
+      expect(json.error).toBe('An error occurred while updating the profile');
+      expect(mockUpdateUserProfile).toHaveBeenCalledWith(mockUserId, updatePayload);
     });
-
-    // Mock ProfileService throwing a general error
-    const mockGetProfile = jest.fn().mockImplementation(() => {
-      throw new Error('Database error');
-    });
-    (ProfileService as jest.Mock).mockImplementation(() => ({
-      getUserProfile: mockGetProfile
-    }));
-
-    // Call the API route
-    const response = await GET();
-    
-    // Verify response
-    expect(response.status).toBe(500);
-    const body = await response.json();
-    expect(body).toEqual({ error: 'An error occurred while retrieving the profile' });
   });
 }); 

@@ -30,6 +30,9 @@ MedMinder Plus is a modern, AI-powered medication management application that tr
 - **Langchain.js** (for AI application development)
 - **Vercel** (edge-optimized hosting)
 - **Node.js** v22.14.0
+- **Jest** (unit and integration testing framework)
+- **React Testing Library** (component testing utilities)
+- **Cypress/Playwright** (E2E testing framework)
 
 ## Getting Started Locally
 
@@ -60,6 +63,8 @@ MedMinder Plus is a modern, AI-powered medication management application that tr
 - `npm run dev` - Runs the application in development mode.
 - `npm run build` - Builds the application for production.
 - `npm run start` - Runs the built production application.
+- `npm run test` - Runs unit and integration tests with Jest.
+- `npm run test:e2e` - Runs E2E tests with Cypress or Playwright.
 - Additional scripts (e.g., linting, testing) may be defined in the project's package configuration.
 
 ## Project Scope

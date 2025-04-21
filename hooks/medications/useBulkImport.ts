@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { BulkImportMedicationItem } from "@/app/types/medications";
-import { api } from "@/lib/api";
+import { bulkImportMedications } from "@/lib/api/medications";
 
 interface UseBulkImportReturn {
   medications: BulkImportMedicationItem[];
@@ -112,19 +112,22 @@ export function useBulkImport(): UseBulkImportReturn {
     setTotalMedications(medications.length);
     
     try {
-      const results = await api.post("/medications/bulk", {
-        medications: medications.map(med => ({
+      const results = await bulkImportMedications(
+        medications.map(med => ({
           name: med.name,
           form: med.form,
           strength: med.strength || null,
           category: med.category,
           startDate: med.startDate,
-          schedule: med.schedule
+          schedule: {
+            ...med.schedule,
+            withFood: false // Adding default value for withFood
+          }
         }))
-      });
+      );
       
-      setSuccessCount(results.data.success || 0);
-      setFailureCount(results.data.failure || 0);
+      setSuccessCount(Array.isArray(results) ? results.length : 0);
+      setFailureCount(medications.length - (Array.isArray(results) ? results.length : 0));
       setIsSuccess(true);
     } catch (error) {
       console.error("Failed to submit bulk import", error);
@@ -184,7 +187,8 @@ export function useBulkImport(): UseBulkImportReturn {
               startDate: startDate.trim(),
               schedule: {
                 type: validScheduleType,
-                times: timesList.length > 0 ? timesList : ["08:00"]
+                times: timesList.length > 0 ? timesList : ["08:00"],
+                withFood: false // Adding default value for withFood
               },
               errors: {}
             });

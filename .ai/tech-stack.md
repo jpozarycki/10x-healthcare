@@ -13,6 +13,22 @@ A modern, opinionated tech stack for building fast, accessible, and AI-powered m
 * **OpenRouter.ai API** - AI-powered personalization and interactions
 * **Langchain.js** - Framework for AI application development
 * **Vercel** - Edge-optimized hosting and deployment platform
+* **Jest** - JavaScript testing framework for unit and integration tests
+* **React Testing Library** - Testing utilities for React components
+* **Cypress/Playwright** - End-to-end testing framework
+
+## Testing Tools
+
+* **Unit & Integration Testing:**
+  * Jest - Test runner and assertion library
+  * React Testing Library - Component testing utilities
+  * @testing-library/jest-dom - Custom DOM element matchers
+  * Mock functions with jest.fn() and jest.mock()
+  
+* **End-to-End Testing:**
+  * Cypress or Playwright - Browser automation frameworks
+  * Support for simulating real user interactions
+  * Cross-browser testing capabilities
 
 ## Prerequisites
 

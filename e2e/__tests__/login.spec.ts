@@ -5,8 +5,8 @@ test.describe('Login functionality', () => {
     await page.goto('/auth/login');
     
     // Check that form elements are visible
-    await expect(page.getByRole('textbox', { name: /email/i })).toBeVisible();
-    await expect(page.getByLabel(/password/i)).toBeVisible();
+    await expect(page.getByLabel('Email')).toBeVisible();
+    await expect(page.getByLabel('Password')).toBeVisible();
     await expect(page.getByRole('button', { name: /sign in/i })).toBeVisible();
   });
   
@@ -14,28 +14,50 @@ test.describe('Login functionality', () => {
     await page.goto('/auth/login');
     
     // Fill in the form with invalid credentials
-    await page.getByRole('textbox', { name: /email/i }).fill('invalid@example.com');
-    await page.getByLabel(/password/i).fill('wrongpassword');
+    await page.getByLabel('Email').fill('invalid@example.com');
+    await page.getByLabel('Password').fill('wrongpassword');
     
     // Submit the form
     await page.getByRole('button', { name: /sign in/i }).click();
     
-    // Check for error message
-    await expect(page.getByText(/invalid email or password/i)).toBeVisible({ timeout: 5000 });
+    // Check for error modal - using text content instead of role
+    await expect(page.getByText('Authentication Failed')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('Incorrect login data')).toBeVisible();
+    
+    // Verify the Close button is also visible
+    await expect(page.getByRole('button', { name: 'Close' })).toBeVisible();
   });
   
-  // Note: This test would need a test account or mocked auth in a real scenario
-  test.skip('successful login redirects to dashboard', async ({ page }) => {
+  test('successful login redirects to dashboard', async ({ page }) => {
+    // Set longer timeout for this test
+    test.setTimeout(60000);
+    
     await page.goto('/auth/login');
     
-    // Fill in the form with valid credentials
-    await page.getByRole('textbox', { name: /email/i }).fill('test@example.com');
-    await page.getByLabel(/password/i).fill('password123');
+    // Make sure the form is fully loaded
+    await expect(page.getByLabel('Email')).toBeVisible();
+    await expect(page.getByLabel('Password')).toBeVisible();
     
-    // Submit the form
+    // Fill in the form with valid credentials
+    await page.getByLabel('Email').fill(process.env.E2E_USERNAME);
+    await page.getByLabel('Password').fill(process.env.E2E_PASSWORD);
+    
+    // Click the submit button
     await page.getByRole('button', { name: /sign in/i }).click();
     
-    // Check that we've been redirected to the dashboard
-    await expect(page).toHaveURL(/.*dashboard.*/);
+    try {
+      // Wait for success message to appear
+      await expect(page.getByText('Authentication Successful')).toBeVisible({ timeout: 15000 });
+      
+      // Wait for navigation to dashboard (with a longer timeout)
+      await expect(async () => {
+        const url = page.url();
+        expect(url).toContain('/dashboard');
+      }).toPass({ timeout: 20000 });
+    } catch (error) {
+      // Take screenshot if test fails
+      await page.screenshot({ path: 'login-failure.png', fullPage: true });
+      throw error;
+    }
   });
 }); 

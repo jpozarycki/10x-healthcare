@@ -1,7 +1,7 @@
 "use client"
 
 import { Inter } from 'next/font/google'
-import { Header } from '@/components/ui/header'
+import { Layout } from '@/components/ui/layout'
 import { ProtectedRouteWrapper } from './protected-route-wrapper'
 import AuthProvider from './auth-provider'
 
@@ -15,12 +15,11 @@ export function RootLayoutClient({
   return (
     <div className={inter.className}>
       <AuthProvider>
-        <Header />
-        <div className="container py-4">
+        <Layout>
           <ProtectedRouteWrapper>
             {children}
           </ProtectedRouteWrapper>
-        </div>
+        </Layout>
       </AuthProvider>
     </div>
   )

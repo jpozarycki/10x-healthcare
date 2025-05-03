@@ -135,7 +135,7 @@ export function ImportedMedicationItem({
             </Label>
             <Select
               value={medication.category}
-              onValueChange={(value) => onUpdate(medication.id, { category: value })}
+              onValueChange={(value: "chronic" | "acute" | "as_needed") => onUpdate(medication.id, { category: value })}
             >
               <SelectTrigger
                 id={`category-${medication.id}`}
@@ -176,7 +176,7 @@ export function ImportedMedicationItem({
             </Label>
             <Select
               value={medication.schedule.type}
-              onValueChange={(value) => updateSchedule({ type: value })}
+              onValueChange={(value: "daily" | "weekly" | "monthly" | "as_needed") => updateSchedule({ type: value })}
             >
               <SelectTrigger id={`scheduleType-${medication.id}`}>
                 <SelectValue placeholder="Select schedule type" />

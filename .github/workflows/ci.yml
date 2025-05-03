@@ -37,4 +37,4 @@ jobs:
         run: bun install
 
       - name: Build production
-        run: bun build app 
+        run: bun run build

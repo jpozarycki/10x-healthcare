@@ -20,7 +20,7 @@ jobs:
         run: bun install
 
       - name: Run unit tests
-        run: bun test
+        run: bun run test
 
       - name: Run E2E tests
         run: bun test:e2e

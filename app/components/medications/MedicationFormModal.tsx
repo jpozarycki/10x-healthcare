@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useForm, SubmitHandler } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,11 +9,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { ScheduleFormSection } from "./ScheduleFormSection";
 import { Loader2, PlusCircle, Edit } from "lucide-react";
-import { useMedicationForm } from "@/app/hooks/medications/useMedicationForm";
 import { StatusModal } from "@/components/ui/status-modal";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import { cn } from "@/lib/utils";
-import { MedicationInteraction, InteractionSeverity } from "@/app/types";
+import { TimeInput } from "@/app/components/ui/TimeInput";
+import { MedicationFormData, medicationFormSchema, MedicationInteraction } from "@/app/types/medications";
+import MedicationService from "@/app/services/medicationService";
+import { z } from "zod";
 
 // Define as a union type instead of referencing the Database type
 type MedicationCategory = "chronic" | "acute" | "as_needed";
@@ -23,251 +27,130 @@ interface MedicationFormModalProps {
   onSave: () => void;
 }
 
+const defaultValues: MedicationFormData = {
+  name: "",
+  form: "",
+  category: "chronic",
+  start_date: new Date().toISOString().split("T")[0],
+  schedule: {
+    type: "daily",
+    times: ["08:00"],
+    with_food: false,
+    pattern: {}
+  }
+};
+
+type MedicationFormWithForce = MedicationFormData & { force_save?: boolean };
+
 export function MedicationFormModal({
   isOpen,
   medicationId,
   onClose,
   onSave,
 }: MedicationFormModalProps) {
-  const {
-    formData,
-    isLoading,
-    isSubmitting,
-    fetchError,
-    updateField,
-    handleSubmit,
-  } = useMedicationForm({ medicationId });
-
-  // Add state for tracking medication interactions
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [interactionWarning, setInteractionWarning] = useState<{
     isOpen: boolean;
     interactions: MedicationInteraction[];
-    severity: InteractionSeverity;
+    severity: string;
     disclaimer: string;
   }>({
     isOpen: false,
     interactions: [],
-    severity: InteractionSeverity.LOW,
+    severity: "LOW",
     disclaimer: "",
   });
 
-  const isEditing = !!medicationId;
+  const {
+    register,
+    handleSubmit,
+    control,
+    reset,
+    formState: { errors, isSubmitting }
+  } = useForm<MedicationFormData>({
+    resolver: zodResolver(medicationFormSchema),
+    defaultValues: async () => {
+      if (medicationId) {
+        setIsLoading(true);
+        try {
+          const data = await MedicationService.getMedication(medicationId);
+          setIsLoading(false);
+          return data;
+        } catch (error) {
+          setError("Failed to load medication details");
+          setIsLoading(false);
+          return defaultValues;
+        }
+      }
+      return defaultValues;
+    }
+  });
 
-  // Obsługuje zamknięcie modalu
+  const onSubmit: SubmitHandler<MedicationFormData> = async (data) => {
+    try {
+      setError(null);
+      setInteractionWarning(prev => ({ ...prev, isOpen: false }));
+
+      const response = medicationId
+        ? await MedicationService.updateMedication(medicationId, data)
+        : await MedicationService.createMedication(data);
+
+      if (response.interactions) {
+        setInteractionWarning({
+          isOpen: true,
+          interactions: response.interactions,
+          severity: response.severity || "LOW",
+          disclaimer: response.disclaimer || "Please consult your healthcare provider."
+        });
+        return;
+      }
+
+      onSave();
+      reset(defaultValues);
+    } catch (error: any) {
+      setError(error.message || "An error occurred while saving the medication");
+    }
+  };
+
   const handleClose = () => {
     if (!isSubmitting) {
+      reset(defaultValues);
       onClose();
     }
   };
 
-  // Obsługuje zapisywanie formularza
-  const handleFormSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    try {
-      // Reset any previous interaction warnings and errors
-      setInteractionWarning(prev => ({ ...prev, isOpen: false }));
-      updateField("errors", {});
-      
-      // Format the data according to the schema
-      const formattedData = {
-        name: formData.name,
-        form: formData.form,
-        strength: formData.strength || undefined,
-        category: formData.category,
-        purpose: formData.purpose || undefined,
-        instructions: formData.instructions || undefined,
-        start_date: formData.startDate,
-        end_date: formData.endDate || undefined,
-        refill_reminder_days: formData.refillReminderDays ? Number(formData.refillReminderDays) : undefined,
-        pills_per_refill: formData.pillsPerRefill ? Number(formData.pillsPerRefill) : undefined,
-        schedule: {
-          type: formData.scheduleType,
-          pattern: {}, // Add any specific pattern data if needed
-          times: Array.isArray(formData.scheduleTimes) ? formData.scheduleTimes : [formData.scheduleTimes].filter(Boolean),
-          with_food: formData.withFood || false
-        }
-      };
-
-      console.log("Submitting formatted data:", formattedData);
-      
-      const data = JSON.stringify(formattedData);
-      const url = medicationId
-        ? `/api/v1/medications/${medicationId}`
-        : "/api/v1/medications";
-      
-      const method = medicationId ? "PUT" : "POST";
-      
-      const response = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: data
-      });
-      
-      const responseData = await response.json();
-      console.log("Response data:", responseData);
-      
-      // Check for validation errors
-      if (!response.ok && responseData.errors) {
-        console.log("Validation errors:", responseData.errors);
-        
-        // Update form errors with validation errors
-        const validationErrors = responseData.errors.reduce((acc: any, error: any) => {
-          // Extract field name from the path
-          const fieldPath = error.path || [];
-          const fieldName = fieldPath[fieldPath.length - 1];
-          
-          if (fieldName) {
-            // Map schema field names to form field names
-            const fieldMapping: { [key: string]: string } = {
-              start_date: 'startDate',
-              end_date: 'endDate',
-              refill_reminder_days: 'refillReminderDays',
-              pills_per_refill: 'pillsPerRefill',
-              with_food: 'withFood'
-            };
-            
-            const formFieldName = fieldMapping[fieldName] || fieldName;
-            acc[formFieldName] = error.message;
-          } else {
-            // If no specific field, set as general submit error
-            acc.submit = error.message;
-          }
-          return acc;
-        }, {});
-        
-        console.log("Processed validation errors:", validationErrors);
-        updateField("errors", validationErrors);
-        return;
-      }
-      
-      // Check for interaction warnings
-      if (!response.ok && responseData.interactions) {
-        console.log("Interaction warning detected:", responseData);
-        
-        // Extract interaction data from the response
-        const interactions = Array.isArray(responseData.interactions) 
-          ? responseData.interactions 
-          : [];
-          
-        // Set up the warning modal data
-        setInteractionWarning({
-          isOpen: true,
-          interactions: interactions,
-          severity: responseData.severity || InteractionSeverity.LOW,
-          disclaimer: responseData.disclaimer || "Please consult a healthcare professional before taking this medication."
-        });
-        
-        return;
-      }
-      
-      if (!response.ok) {
-        // Handle other types of errors
-        console.error("Unexpected error:", responseData);
-        updateField("errors", { 
-          submit: responseData.message || "An error occurred while saving the medication."
-        });
-        return;
-      }
-      
-      // If we get here, the request was successful
-      onSave();
-    } catch (error) {
-      console.error("Error submitting form:", error);
-      updateField("errors", { 
-        submit: "An unexpected error occurred. Please try again."
-      });
-    }
-  };
-
-  // Force save even with interactions
-  const handleForceSave = async () => {
-    try {
-      // Close the interaction warning modal
-      setInteractionWarning(prev => ({ ...prev, isOpen: false }));
-      
-      // Reset any previous errors
-      updateField("errors", {});
-      
-      // Format the data according to the schema, but include force_save at the top level
-      const formattedData = {
-        name: formData.name,
-        form: formData.form,
-        strength: formData.strength || undefined,
-        category: formData.category,
-        purpose: formData.purpose || undefined,
-        instructions: formData.instructions || undefined,
-        start_date: formData.startDate,
-        end_date: formData.endDate || undefined,
-        refill_reminder_days: formData.refillReminderDays ? Number(formData.refillReminderDays) : undefined,
-        pills_per_refill: formData.pillsPerRefill ? Number(formData.pillsPerRefill) : undefined,
-        schedule: {
-          type: formData.scheduleType,
-          pattern: {}, // Add any specific pattern data if needed
-          times: Array.isArray(formData.scheduleTimes) ? formData.scheduleTimes : [formData.scheduleTimes].filter(Boolean),
-          with_food: formData.withFood || false
-        },
-        // Add force_save flag at the top level
+  const handleForceSave = () => {
+    handleSubmit(async (data: MedicationFormData) => {
+      const medicationData: MedicationFormWithForce = {
+        ...data,
         force_save: true
       };
-      
-      console.log("Force saving medication with data:", formattedData);
-      
-      const data = JSON.stringify(formattedData);
-      const url = medicationId
-        ? `/api/v1/medications/${medicationId}`
-        : "/api/v1/medications";
-      
-      const method = medicationId ? "PUT" : "POST";
-      
-      const response = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: data
-      });
-      
-      // Try to parse JSON response, but handle case where it might not be JSON
-      let responseData;
+
       try {
-        responseData = await response.json();
-        console.log("Force save response:", responseData);
-      } catch (e) {
-        console.log("Non-JSON response:", await response.text());
+        setError(null);
+        setInteractionWarning(prev => ({ ...prev, isOpen: false }));
+
+        const response = medicationId
+          ? await MedicationService.updateMedication(medicationId, medicationData)
+          : await MedicationService.createMedication(medicationData);
+
+        onSave();
+        reset(defaultValues);
+      } catch (error: any) {
+        setError(error.message || "An error occurred while saving the medication");
       }
-      
-      if (!response.ok) {
-        console.error("Error during force save:", responseData);
-        updateField("errors", { 
-          submit: responseData?.message || "An error occurred while saving the medication."
-        });
-        return;
-      }
-      
-      // Success - close the form and refresh the list
-      onSave();
-    } catch (error) {
-      console.error("Error force saving medication:", error);
-      updateField("errors", { 
-        submit: "An unexpected error occurred. Please try again."
-      });
-    }
+    })();
   };
 
-  // Format the interaction warning message with clearer styling
+  // Format the interaction warning message
   const formatInteractionMessage = () => {
     if (!interactionWarning.interactions.length) return "";
     
-    console.log("Formatting interactions:", interactionWarning.interactions);
-    
     const interactionsText = interactionWarning.interactions.map((interaction, index) => {
-      // Determine severity color
-      const severityColor = interaction.severity === InteractionSeverity.HIGH 
+      const severityColor = interaction.severity === "HIGH" 
         ? 'red-600' 
-        : interaction.severity === InteractionSeverity.MODERATE 
+        : interaction.severity === "MODERATE" 
           ? 'amber-600' 
           : 'yellow-600';
       
@@ -289,53 +172,40 @@ export function MedicationFormModal({
     `;
   };
 
-  // Wyświetlanie komunikatu błędu, jeśli wystąpił problem z pobieraniem danych
-  if (fetchError) {
+  if (error) {
     return (
       <StatusModal
-        isOpen={!!fetchError}
+        isOpen={!!error}
         variant="error"
-        title="Error Loading Medication"
-        message={fetchError}
-        onClose={onClose}
+        title="Error"
+        message={error}
+        onClose={() => setError(null)}
       />
     );
   }
 
   return (
     <>
-      {/* Interaction Warning Modal with two action buttons */}
       <ConfirmationModal
         isOpen={interactionWarning.isOpen}
         variant="warning"
         title="Medication Interaction Warning"
         message={formatInteractionMessage()}
-        onCancel={() => {
-          setInteractionWarning(prev => ({ ...prev, isOpen: false }));
-          // Just close the warning modal without saving
-        }}
+        onCancel={() => setInteractionWarning(prev => ({ ...prev, isOpen: false }))}
         onConfirm={handleForceSave}
         cancelText="Cancel"
         confirmText="Accept the risk and save"
       />
 
       <Dialog open={isOpen} onOpenChange={handleClose}>
-        <DialogContent 
-          className={cn(
-            "bg-white shadow-xl rounded-xl",
-            "border-2 border-primary/20",
-            "max-w-2xl max-h-[90vh] overflow-y-auto",
-            "data-[state=open]:animate-in data-[state=closed]:animate-out",
-            "data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0",
-            "data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95",
-            "data-[state=open]:slide-in-from-center data-[state=closed]:slide-out-to-center",
-            "duration-300 ease-in-out transition-all",
-            "animate-in fade-in-0 zoom-in-95"
-          )}
-        >
+        <DialogContent className={cn(
+          "bg-white shadow-xl rounded-xl",
+          "border-2 border-primary/20",
+          "max-w-2xl max-h-[90vh] overflow-y-auto"
+        )}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-primary text-xl font-bold">
-              {isEditing ? (
+              {medicationId ? (
                 <>
                   <Edit className="h-6 w-6 text-primary" />
                   Edit Medication
@@ -355,40 +225,31 @@ export function MedicationFormModal({
               <span className="ml-2">Loading medication details...</span>
             </div>
           ) : (
-            <form onSubmit={handleFormSubmit} className="space-y-6">
-              {/* Basic Information */}
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name" className="required">
-                    Medication Name
-                  </Label>
+                  <Label htmlFor="name" className="required">Medication Name</Label>
                   <Input
                     id="name"
-                    value={formData.name}
-                    onChange={(e) => updateField("name", e.target.value)}
-                    className={formData.errors.name ? "border-red-500" : ""}
+                    {...register("name")}
+                    className={errors.name ? "border-red-500" : ""}
                     placeholder="e.g. Aspirin"
-                    required
                   />
-                  {formData.errors.name && (
-                    <p className="text-sm text-red-500">{formData.errors.name}</p>
+                  {errors.name?.message && (
+                    <p className="text-sm text-red-500">{errors.name.message}</p>
                   )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="form" className="required">
-                    Medication Form
-                  </Label>
+                  <Label htmlFor="form" className="required">Medication Form</Label>
                   <Input
                     id="form"
-                    value={formData.form}
-                    onChange={(e) => updateField("form", e.target.value)}
-                    className={formData.errors.form ? "border-red-500" : ""}
+                    {...register("form")}
+                    className={errors.form ? "border-red-500" : ""}
                     placeholder="e.g. Tablet, Capsule, Liquid"
-                    required
                   />
-                  {formData.errors.form && (
-                    <p className="text-sm text-red-500">{formData.errors.form}</p>
+                  {errors.form?.message && (
+                    <p className="text-sm text-red-500">{errors.form.message}</p>
                   )}
                 </div>
 
@@ -396,24 +257,18 @@ export function MedicationFormModal({
                   <Label htmlFor="strength">Strength</Label>
                   <Input
                     id="strength"
-                    value={formData.strength || ""}
-                    onChange={(e) => updateField("strength", e.target.value)}
+                    {...register("strength")}
                     placeholder="e.g. 500mg, 10ml"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="category" className="required">
-                    Category
-                  </Label>
+                  <Label htmlFor="category" className="required">Category</Label>
                   <Select
-                    value={formData.category}
-                    onValueChange={(value: MedicationCategory) => updateField("category", value)}
+                    defaultValue={defaultValues.category}
+                    onValueChange={(value) => register("category").onChange({ target: { value } })}
                   >
-                    <SelectTrigger
-                      id="category"
-                      className={formData.errors.category ? "border-red-500" : ""}
-                    >
+                    <SelectTrigger id="category" className={errors.category ? "border-red-500" : ""}>
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
@@ -422,109 +277,73 @@ export function MedicationFormModal({
                       <SelectItem value="as_needed">As needed</SelectItem>
                     </SelectContent>
                   </Select>
-                  {formData.errors.category && (
-                    <p className="text-sm text-red-500">
-                      {formData.errors.category}
-                    </p>
+                  {errors.category?.message && (
+                    <p className="text-sm text-red-500">{errors.category.message}</p>
                   )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="startDate" className="required">
-                    Start Date
-                  </Label>
+                  <Label htmlFor="start_date" className="required">Start Date</Label>
                   <Input
-                    id="startDate"
+                    id="start_date"
                     type="date"
-                    value={formData.startDate}
-                    onChange={(e) => updateField("startDate", e.target.value)}
-                    className={formData.errors.startDate ? "border-red-500" : ""}
-                    required
+                    {...register("start_date")}
+                    className={errors.start_date ? "border-red-500" : ""}
                   />
-                  {formData.errors.startDate && (
-                    <p className="text-sm text-red-500">
-                      {formData.errors.startDate}
-                    </p>
+                  {errors.start_date?.message && (
+                    <p className="text-sm text-red-500">{errors.start_date.message}</p>
                   )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="endDate">End Date</Label>
+                  <Label htmlFor="end_date">End Date</Label>
                   <Input
-                    id="endDate"
+                    id="end_date"
                     type="date"
-                    value={formData.endDate || ""}
-                    onChange={(e) => updateField("endDate", e.target.value)}
-                    className={formData.errors.endDate ? "border-red-500" : ""}
-                    min={formData.startDate}
+                    {...register("end_date")}
+                    className={errors.end_date ? "border-red-500" : ""}
                   />
-                  {formData.errors.endDate && (
-                    <p className="text-sm text-red-500">
-                      {formData.errors.endDate}
-                    </p>
+                  {errors.end_date?.message && (
+                    <p className="text-sm text-red-500">{errors.end_date.message}</p>
                   )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="refillReminderDays">
-                    Refill Reminder (days before empty)
-                  </Label>
+                  <Label htmlFor="refill_reminder_days">Refill Reminder (days)</Label>
                   <Input
-                    id="refillReminderDays"
+                    id="refill_reminder_days"
                     type="number"
-                    value={formData.refillReminderDays || ""}
-                    onChange={(e) =>
-                      updateField(
-                        "refillReminderDays",
-                        e.target.value ? Number(e.target.value) : undefined
-                      )
-                    }
-                    className={
-                      formData.errors.refillReminderDays ? "border-red-500" : ""
-                    }
+                    {...register("refill_reminder_days", { valueAsNumber: true })}
+                    className={errors.refill_reminder_days ? "border-red-500" : ""}
                     min="0"
                     max="90"
                   />
-                  {formData.errors.refillReminderDays && (
-                    <p className="text-sm text-red-500">
-                      {formData.errors.refillReminderDays}
-                    </p>
+                  {errors.refill_reminder_days?.message && (
+                    <p className="text-sm text-red-500">{errors.refill_reminder_days.message}</p>
                   )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="pillsPerRefill">Pills per Refill</Label>
+                  <Label htmlFor="pills_per_refill">Pills per Refill</Label>
                   <Input
-                    id="pillsPerRefill"
+                    id="pills_per_refill"
                     type="number"
-                    value={formData.pillsPerRefill || ""}
-                    onChange={(e) =>
-                      updateField(
-                        "pillsPerRefill",
-                        e.target.value ? Number(e.target.value) : undefined
-                      )
-                    }
-                    className={
-                      formData.errors.pillsPerRefill ? "border-red-500" : ""
-                    }
+                    {...register("pills_per_refill", { valueAsNumber: true })}
+                    className={errors.pills_per_refill ? "border-red-500" : ""}
                     min="1"
                   />
-                  {formData.errors.pillsPerRefill && (
-                    <p className="text-sm text-red-500">
-                      {formData.errors.pillsPerRefill}
-                    </p>
+                  {errors.pills_per_refill?.message && (
+                    <p className="text-sm text-red-500">{errors.pills_per_refill.message}</p>
                   )}
                 </div>
               </div>
 
-              {/* Purpose and Instructions */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="purpose">Purpose</Label>
                   <Textarea
                     id="purpose"
-                    value={formData.purpose || ""}
-                    onChange={(e) => updateField("purpose", e.target.value)}
+                    {...register("purpose")}
                     placeholder="What is this medication for?"
                     rows={2}
                   />
@@ -534,55 +353,63 @@ export function MedicationFormModal({
                   <Label htmlFor="instructions">Special Instructions</Label>
                   <Textarea
                     id="instructions"
-                    value={formData.instructions || ""}
-                    onChange={(e) => updateField("instructions", e.target.value)}
+                    {...register("instructions")}
                     placeholder="Any special instructions for taking this medication?"
                     rows={2}
                   />
                 </div>
               </div>
 
-              {/* Schedule Section */}
-              <ScheduleFormSection
-                scheduleType={formData.scheduleType}
-                scheduleTimes={formData.scheduleTimes}
-                schedulePattern={formData.schedulePattern}
-                withFood={formData.withFood}
-                errors={formData.errors}
-                onChange={updateField}
-              />
+              <div className="space-y-4">
+                <Label htmlFor="schedule.type" className="required">Schedule Type</Label>
+                <Select
+                  defaultValue={defaultValues.schedule.type}
+                  onValueChange={(value) => register("schedule.type").onChange({ target: { value } })}
+                >
+                  <SelectTrigger id="schedule.type" className={errors.schedule?.type ? "border-red-500" : ""}>
+                    <SelectValue placeholder="Select schedule type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="daily">Daily</SelectItem>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="as_needed">As needed</SelectItem>
+                  </SelectContent>
+                </Select>
+                {errors.schedule?.type && typeof errors.schedule.type === 'object' && 'message' in errors.schedule.type && (
+                  <p className="text-sm text-red-500">{errors.schedule.type.message}</p>
+                )}
 
-              {/* Error Message */}
-              {formData.errors.submit && (
-                <div className="text-red-500 p-3 border border-red-300 bg-red-50 rounded-md">
-                  {formData.errors.submit}
-                </div>
-              )}
+                <TimeInput
+                  control={control}
+                  error={errors.schedule?.times && typeof errors.schedule.times === 'object' && 'message' in errors.schedule.times 
+                    ? String(errors.schedule.times.message) 
+                    : undefined}
+                />
+              </div>
 
               <DialogFooter className="mt-6">
                 <div className="w-full flex justify-between">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
+                  <Button
+                    type="button"
+                    variant="outline"
                     onClick={handleClose}
                     disabled={isSubmitting}
-                    className="font-medium"
                   >
                     Cancel
                   </Button>
-                  <Button 
+                  <Button
                     type="submit"
-                    onClick={handleFormSubmit}
                     disabled={isSubmitting}
-                    className="bg-primary hover:bg-primary/90 text-white font-bold py-2 px-6 rounded shadow-md hover:shadow-lg transition-all bg-green-400"
+                    className="bg-primary hover:bg-primary/90"
                   >
                     {isSubmitting ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        {isEditing ? "Updating..." : "Saving..."}
+                        {medicationId ? "Updating..." : "Saving..."}
                       </>
                     ) : (
-                      isEditing ? "Update Medication" : "Save Medication"
+                      medicationId ? "Update Medication" : "Save Medication"
                     )}
                   </Button>
                 </div>

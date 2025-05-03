@@ -55,8 +55,6 @@ test.describe('Login functionality', () => {
         expect(url).toContain('/dashboard');
       }).toPass({ timeout: 20000 });
     } catch (error) {
-      // Take screenshot if test fails
-      await page.screenshot({ path: 'login-failure.png', fullPage: true });
       throw error;
     }
   });

@@ -1,27 +1,25 @@
+import { isFeatureEnabled } from "@/app/features/featureFlags"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { ComingSoon } from "@/components/ui/coming-soon"
 
 export default function AlertsPage() {
+  if (!isFeatureEnabled('alerts')) {
+    return <ComingSoon featureName="Alerts" />
+  }
+
   return (
-    <div className="space-y-4">
-      <h1 className="text-3xl font-bold">Alerts</h1>
-      
+    <div className="container py-6">
+      <h1 className="text-3xl font-bold mb-6">Alerts</h1>
+      {/* Your alerts content here */}
       <Card>
         <CardHeader>
-          <CardTitle>Medication Reminders</CardTitle>
-          <CardDescription>Your medication reminder history</CardDescription>
+          <CardTitle>Health Alerts</CardTitle>
+          <CardDescription>
+            Stay informed about important health updates
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <p>No reminder history available yet.</p>
-        </CardContent>
-      </Card>
-      
-      <Card>
-        <CardHeader>
-          <CardTitle>Critical Alerts</CardTitle>
-          <CardDescription>Important notifications about your medications</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p>No critical alerts at this time.</p>
+          <p>Alerts content will be available here soon.</p>
         </CardContent>
       </Card>
     </div>

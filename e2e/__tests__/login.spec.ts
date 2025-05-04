@@ -28,7 +28,7 @@ test.describe('Login functionality', () => {
     await expect(page.getByRole('button', { name: 'Close' })).toBeVisible();
   });
   
-  test('successful login redirects to dashboard', async ({ page }) => {
+  test('successful login redirects to medications (dashboard disabled)', async ({ page }) => {
     // Set longer timeout for this test
     test.setTimeout(60000);
     
@@ -48,11 +48,12 @@ test.describe('Login functionality', () => {
     try {
       // Wait for success message to appear
       await expect(page.getByText('Authentication Successful')).toBeVisible({ timeout: 15000 });
+      await expect(page.getByText('Login successful! Redirecting to medications...')).toBeVisible();
       
-      // Wait for navigation to dashboard (with a longer timeout)
+      // Wait for navigation to medications (with a longer timeout)
       await expect(async () => {
         const url = page.url();
-        expect(url).toContain('/dashboard');
+        expect(url).toContain('/medications');
       }).toPass({ timeout: 20000 });
     } catch (error) {
       throw error;

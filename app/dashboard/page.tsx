@@ -1,26 +1,25 @@
+import { isFeatureEnabled } from "@/app/features/featureFlags"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { ComingSoon } from "@/components/ui/coming-soon"
 
 export default function DashboardPage() {
+  if (!isFeatureEnabled('dashboard')) {
+    return <ComingSoon featureName="Dashboard" />
+  }
+
   return (
-    <div className="space-y-4">
-      <h1 className="text-3xl font-bold">Dashboard</h1>
+    <div className="container py-6">
+      <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
+      {/* Your dashboard content here */}
       <Card>
         <CardHeader>
-          <CardTitle>Today's Medications</CardTitle>
-          <CardDescription>Your medication schedule for today</CardDescription>
+          <CardTitle>Welcome to your Dashboard</CardTitle>
+          <CardDescription>
+            View your health metrics and upcoming appointments
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <p>No medications scheduled for today.</p>
-        </CardContent>
-      </Card>
-      
-      <Card>
-        <CardHeader>
-          <CardTitle>Adherence Status</CardTitle>
-          <CardDescription>Your medication adherence statistics</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p>No adherence data available yet.</p>
+          <p>Dashboard content will be available here soon.</p>
         </CardContent>
       </Card>
     </div>

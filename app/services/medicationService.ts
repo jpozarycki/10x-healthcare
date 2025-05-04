@@ -1,11 +1,24 @@
 import { MedicationFormData, MedicationApiResponse, MedicationResponse } from '../types/medications';
+import { CreateMedicationRequest } from '../types';
 
 class MedicationService {
   private static async handleResponse(response: Response): Promise<MedicationApiResponse> {
     const data = await response.json();
+    
+    // Handle medication interaction responses (status 400 with interactions)
+    if (response.status === 400 && data.interactions) {
+      return {
+        interactions: data.interactions,
+        severity: data.severity,
+        disclaimer: data.disclaimer,
+        ...data
+      };
+    }
+    
     if (!response.ok) {
       throw {
         status: response.status,
+        message: data.error || data.message || 'An error occurred',
         ...data
       };
     }
@@ -18,7 +31,7 @@ class MedicationService {
     return data.data as MedicationResponse;
   }
 
-  static async createMedication(data: MedicationFormData): Promise<MedicationApiResponse> {
+  static async createMedication(data: CreateMedicationRequest): Promise<MedicationApiResponse> {
     const response = await fetch('/api/v1/medications', {
       method: 'POST',
       headers: {
@@ -29,7 +42,7 @@ class MedicationService {
     return this.handleResponse(response);
   }
 
-  static async updateMedication(id: string, data: MedicationFormData): Promise<MedicationApiResponse> {
+  static async updateMedication(id: string, data: CreateMedicationRequest): Promise<MedicationApiResponse> {
     const response = await fetch(`/api/v1/medications/${id}`, {
       method: 'PUT',
       headers: {
@@ -48,12 +61,13 @@ class MedicationService {
       const data = await response.json();
       throw {
         status: response.status,
+        message: data.error || data.message || 'An error occurred',
         ...data
       };
     }
   }
 
-  static async bulkImportMedications(medications: MedicationFormData[]): Promise<MedicationApiResponse> {
+  static async bulkImportMedications(medications: CreateMedicationRequest[]): Promise<MedicationApiResponse> {
     const response = await fetch('/api/v1/medications/bulk', {
       method: 'POST',
       headers: {

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { MedicationFormViewModel } from "@/app/types/medications";
 import { CreateMedicationRequest, MedicationDetailResponse } from "@/app/types";
+import { useStatusModal } from "@/components/ui/status-modal";
 
 interface UseMedicationFormProps {
   medicationId?: string | null;
@@ -24,6 +25,7 @@ export function useMedicationForm({ medicationId }: UseMedicationFormProps = {})
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const { showStatus, showError } = useStatusModal();
 
   // Pobieranie danych leku, jeśli jest to edycja
   useEffect(() => {
@@ -212,21 +214,21 @@ export function useMedicationForm({ medicationId }: UseMedicationFormProps = {})
   }, [formData]);
 
   // Funkcja obsługująca zapis formularza
-  const handleSubmit = useCallback(async () => {
+  const handleSubmit = useCallback(async (): Promise<boolean> => {
     if (!validateForm()) {
       return false;
     }
-    
+
+    setIsSubmitting(true);
+    let responseData: any = null;
+
     try {
-      setIsSubmitting(true);
-      
       const data = prepareRequestData();
       const url = medicationId
         ? `/api/v1/medications/${medicationId}`
         : "/api/v1/medications";
-      
       const method = medicationId ? "PUT" : "POST";
-      
+
       const response = await fetch(url, {
         method,
         headers: {
@@ -234,28 +236,54 @@ export function useMedicationForm({ medicationId }: UseMedicationFormProps = {})
         },
         body: JSON.stringify(data)
       });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `Error ${response.status}: ${response.statusText}`);
+
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.indexOf("application/json") !== -1) {
+        responseData = await response.json();
       }
-      
+
+      if (!response.ok) {
+        const errorMessage = responseData?.message || responseData?.error || `Error ${response.status}: ${response.statusText}`;
+        throw new Error(errorMessage);
+      }
+
+      // Success case: Check for interactions
+      const interactions: { description: string; severity: string }[] = responseData?.interactions;
+
+      if (interactions && interactions.length > 0) {
+        const interactionMessage = interactions
+          .map(int => `- ${int.description} (Severity: ${int.severity || 'Unknown'})`)
+          .join('\n');
+        
+        // Show interactions using StatusModal - using 'error' variant as 'warning' is unavailable
+        showStatus(
+            `Medication saved, but potential interactions were detected:\n${interactionMessage}`,
+            {
+                title: "Interaction Warning",
+                variant: "error" // Use 'error' variant for warnings
+            }
+        );
+        return true; // Indicate success despite warning
+      }
+
+      // Success case: No interactions
+      // showStatus("Medication saved successfully.", { variant: "success", title: "Success" });
       return true;
+
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
+      // Show error using StatusModal
+      showError(errorMessage, "Error Saving Medication");
+      // Keep the error in form state as well, if needed for inline display
       setFormData(prev => ({
         ...prev,
-        errors: {
-          ...prev.errors,
-          submit: errorMessage
-        }
+        errors: { ...prev.errors, submit: errorMessage }
       }));
-      console.error("Error submitting medication form:", err);
       return false;
     } finally {
       setIsSubmitting(false);
     }
-  }, [validateForm, prepareRequestData, medicationId]);
+  }, [validateForm, prepareRequestData, medicationId, showError, showStatus]);
 
   return {
     formData,
@@ -263,6 +291,7 @@ export function useMedicationForm({ medicationId }: UseMedicationFormProps = {})
     isSubmitting,
     fetchError,
     updateField,
+    validateForm,
     handleSubmit
   };
 } 

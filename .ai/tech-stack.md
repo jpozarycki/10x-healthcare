@@ -12,7 +12,6 @@ A modern, opinionated tech stack for building fast, accessible, and AI-powered m
 * **Supabase** - PostgreSQL database with authentication and realtime features
 * **OpenRouter.ai API** - AI-powered personalization and interactions
 * **Langchain.js** - Framework for AI application development
-* **Vercel** - Edge-optimized hosting and deployment platform
 * **Jest** - JavaScript testing framework for unit and integration tests
 * **React Testing Library** - Testing utilities for React components
 * **Cypress/Playwright** - End-to-end testing framework

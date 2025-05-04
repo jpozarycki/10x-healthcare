@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { StatusModal, useStatusModal } from '@/components/ui/status-modal'
+import { isFeatureEnabled } from '@/app/features/featureFlags'
 
 export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false)
@@ -43,16 +44,19 @@ export function LoginForm() {
         return
       }
 
-      // Show success modal
+      // Determine redirect path based on feature flag
+      const redirectPath = isFeatureEnabled('dashboard') ? '/dashboard' : '/medications'
+
+      // Show success modal with dynamic redirect message
       showSuccess(
-        "Login successful! Redirecting to dashboard...",
+        `Login successful! Redirecting to ${redirectPath.slice(1)}...`,
         "Authentication Successful"
       )
       
       // Wait a moment to show the success message before redirecting
       setTimeout(() => {
         // Force hard navigation instead of client-side routing
-        window.location.href = '/dashboard'
+        window.location.href = redirectPath
       }, 1500)
     } catch (error) {
       showError(

@@ -1,9 +1,4 @@
----
-description: 
-globs: 
-alwaysApply: true
----
- ## BACKEND
+## BACKEND
 
 ### Guidelines for NEXT
 
@@ -28,4 +23,4 @@ alwaysApply: true
 - Use Next.js Image component with proper optimization settings for {{image_requirements}}
 - Leverage streaming with Suspense boundaries for progressive page loading
 - Implement proper parallel and sequential data fetching patterns based on requirements
-- Use Next.js middleware for request transformation, response modification, and redirects
+- Use Next.js middleware for request transformation, response modification, and redirects 

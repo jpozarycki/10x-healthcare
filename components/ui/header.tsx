@@ -6,45 +6,59 @@ import { Home, Pill, BookOpen, Bell, User } from 'lucide-react'
 import { cn } from '@/app/lib/utils'
 import { LogoutButton } from '@/components/ui/logout-button'
 import { useAuth } from '@/app/_components/auth-provider'
+import { isFeatureEnabled, FeatureFlagKey } from '@/app/features/featureFlags'
 
 const navItems = [
   {
     name: 'Dashboard',
     href: '/dashboard',
-    icon: Home
+    icon: Home,
+    featureFlag: 'dashboard'
   },
   {
     name: 'Medications',
     href: '/medications',
-    icon: Pill
+    icon: Pill,
+    featureFlag: 'medications'
   },
   {
     name: 'Education',
     href: '/education',
-    icon: BookOpen
+    icon: BookOpen,
+    featureFlag: 'education'
   },
   {
     name: 'Alerts',
     href: '/alerts',
-    icon: Bell
+    icon: Bell,
+    featureFlag: 'alerts'
   },
   {
     name: 'Profile',
     href: '/profile',
-    icon: User
+    icon: User,
+    featureFlag: 'profile'
   }
 ]
 
 export function Header() {
   const pathname = usePathname()
   const { isAuthenticated, isLoading } = useAuth()
-  
-  console.log('Header component:', { isAuthenticated, isLoading, pathname })
-  
+
   // Don't show the header on auth routes, when authentication is loading, or when user is not authenticated
   if (pathname.startsWith('/auth/') || isLoading || !isAuthenticated) {
     return null
   }
+
+  // Filter nav items based on feature flags
+  const filteredNavItems = navItems.filter(item => {
+    const isEnabled = isFeatureEnabled(item.featureFlag as FeatureFlagKey)
+    console.log(`Nav item "${item.name}":`, { 
+      featureFlag: item.featureFlag,
+      isEnabled,
+    })
+    return isEnabled
+  })
 
   return (
     <header className="hidden md:block sticky top-0 z-50 w-full border-b bg-white shadow-sm">
@@ -55,7 +69,7 @@ export function Header() {
         </Link>
         
         <nav className="flex items-center gap-6">
-          {navItems.map((item) => {
+          {filteredNavItems.map((item) => {
             const isActive = pathname === item.href
             
             return (
